@@ -1,0 +1,34 @@
+version: '2'
+services:
+  pytorch:
+    build: .
+    volumes:
+      - .:/app
+      - /data:/data:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /etc/hostname:/etc/hostname:ro
+    environment:
+      - DISPLAY
+      - PYTHONIOENCODING=utf_8
+    ipc: host
+  showoff:
+    image: showoff
+    ports:
+      - "16676:3000"
+    env_file:
+      - ./env/postgres.env
+    links:
+      - db
+  db:
+    image: postgres:9.5
+    environment:
+      - POSTGRES_DB=showoff_db
+    env_file:
+      - ./env/postgres.env
+    volumes:
+      - showoff_data:/var/lib/postgresql/data
+
+volumes:
+  showoff_data:
+    external: false
