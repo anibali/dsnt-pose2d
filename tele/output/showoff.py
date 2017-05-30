@@ -73,6 +73,18 @@ class ImageCell(ShowoffDisplayCell):
     stream.write('</div>')
     self.frame.html(stream.getvalue())
 
+class GraphvizCell(ShowoffDisplayCell):
+  def __init__(self, name):
+    super().__init__(name)
+
+  def render(self, step_num, meters):
+    meter_name, meter = next(iter(meters.items()))
+    value = meter.value()
+    svg_bytes = value.pipe(format='svg')
+    b64_str = base64.b64encode(svg_bytes).decode('utf-8')
+    img_tag_template = '<img style="width: 100%;" src=data:image/svg+xml;base64,{}>'
+    self.frame.html(img_tag_template.format(b64_str))
+
 class InspectValueCell(ShowoffDisplayCell):
   def __init__(self, name, flatten=False):
     super().__init__(name)
