@@ -37,13 +37,11 @@ class MPIIDataset(Dataset):
 
       if 'parts' in f[subset]:
         part_coords = torch.from_numpy(f[subset]['parts/coords'][index])
-        part_visible = torch.from_numpy(f[subset]['parts/visible'][index])
         norm_target = part_coords.double()
         orig_target = torch.mm(norm_target, trans_m.double()).add_(trans_b.double().expand_as(norm_target))
         part_mask = orig_target[:, 0].gt(1).mul(orig_target[:, 1].gt(1))
       else:
         part_coords = None
-        part_visible = None
         part_mask = None
 
     ### Calculate augmentations ###
@@ -74,9 +72,10 @@ class MPIIDataset(Dataset):
         [ 0, 0, 1],
       ]), t)
     # Scale then rotate
+    rads = math.radians(rot)
     t = torch.mm(t.new([
-      [math.cos(rot) / scale,  math.sin(rot) / scale, 0],
-      [-math.sin(rot) / scale, math.cos(rot) / scale, 0],
+      [math.cos(rads) / scale,  math.sin(rads) / scale, 0],
+      [-math.sin(rads) / scale, math.cos(rads) / scale, 0],
       [0,                      0,                     1],
     ]), t)
     # Normalize to [-1, 1] range
@@ -98,8 +97,14 @@ class MPIIDataset(Dataset):
         # Swap left and right joints
         hflip_indices_2d = MPIIDataset.HFLIP_INDICES.view(-1, 1).expand_as(part_coords)
         part_coords.scatter_(0, hflip_indices_2d, part_coords.clone())
-        part_visible.scatter_(0, MPIIDataset.HFLIP_INDICES, part_visible.clone())
         part_mask.scatter_(0, MPIIDataset.HFLIP_INDICES, part_mask.clone())
+
+    # Mask out joints that have been transformed to a location outside of the
+    # image bounds
+    for i in range(part_coords.size(0)):
+      x, y = part_coords[i].tolist()
+      if x < -1 or x > 1 or y < -1 or y > 1:
+        part_mask[i] = 0
 
     ### Transform image ###
 
@@ -109,13 +114,18 @@ class MPIIDataset(Dataset):
     # image transforms available which operate on tensors directly?
     trans = transforms.Compose([
       transforms.ToPILImage(),
-      transforms.Lambda(lambda img: img.rotate(rot)),
+      transforms.Lambda(lambda img: img.transpose(Image.FLIP_LEFT_RIGHT) if hflip else img),
+      transforms.Lambda(lambda img: img.rotate(rot, Image.BILINEAR) if rot != 0 else img),
       transforms.CenterCrop(384 * scale),
       transforms.Scale(224, Image.BILINEAR),
-      transforms.Lambda(lambda img: img.transpose(Image.FLIP_LEFT_RIGHT) if hflip else img),
       transforms.ToTensor(),
     ])
     input_image = trans(raw_image)
+
+    # Colour augmentation
+    if self.use_aug:
+      for chan in range(input_image.size(0)):
+        input_image[chan].mul_(random.uniform(0.6, 1.4)).clamp_(0, 1)
 
     ### Set up transforms for returning to original image coords ###
 
@@ -139,7 +149,6 @@ class MPIIDataset(Dataset):
       'transform_m':  trans_m,
       'input':        input_image,
       'part_coords':  part_coords,
-      'part_visible': part_visible,
       'part_mask':    part_mask,
       'hflip':        hflip,
     }
