@@ -1,6 +1,10 @@
 from io import StringIO
 
 class Meter():
+  def __init__(self, skip_reset):
+    self.reset()
+    self.skip_reset = skip_reset
+
   def reset(self):
     pass
 
@@ -8,8 +12,8 @@ class Meter():
     return None
 
 class ValueMeter(Meter):
-  def __init__(self):
-    self.reset()
+  def __init__(self, skip_reset=False):
+    super().__init__(skip_reset)
 
   def set_value(self, value):
     self._value = value

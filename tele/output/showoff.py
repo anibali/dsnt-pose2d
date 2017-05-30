@@ -33,16 +33,13 @@ class LineGraphCell(ShowoffDisplayCell):
       series_names.append(meter_name)
     self.frame.line_graph(self.xs, self.yss, series_names=series_names)
 
-class TextStreamCell(ShowoffDisplayCell):
+class TextCell(ShowoffDisplayCell):
   def __init__(self, name):
     super().__init__(name)
-    self.stream = StringIO()
 
   def render(self, step_num, meters):
     meter_name, meter = next(iter(meters.items()))
-    self.stream.write('=== {:^4d} ===\n'.format(step_num))
-    self.stream.write(str(meter.value()))
-    self.frame.text(self.stream.getvalue())
+    self.frame.text(str(meter.value()))
 
 class ImageCell(ShowoffDisplayCell):
   def __init__(self, name, images_per_row=None):
@@ -71,8 +68,8 @@ class ImageCell(ShowoffDisplayCell):
         img = transforms.ToPILImage()(value.cpu())
       buf = BytesIO()
       img.save(buf, format='PNG')
-      img_str = base64.b64encode(buf.getvalue()).decode('utf-8')
-      stream.write(img_tag_template.format(img_str))
+      b64_str = base64.b64encode(buf.getvalue()).decode('utf-8')
+      stream.write(img_tag_template.format(b64_str))
     stream.write('</div>')
     self.frame.html(stream.getvalue())
 
@@ -108,7 +105,7 @@ class InspectValueCell(ShowoffDisplayCell):
 
 class ShowoffOutput(tele.TelemetryOutput):
   auto_cell_types = {
-    tele.meter.StringBuilderMeter: lambda name, meter: TextStreamCell(name),
+    tele.meter.StringBuilderMeter: lambda name, meter: TextCell(name),
     torchnet.meter.AverageValueMeter: lambda name, meter: LineGraphCell(name),
     torchnet.meter.TimeMeter: lambda name, meter: LineGraphCell(name),
   }

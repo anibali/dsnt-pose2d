@@ -5,7 +5,7 @@ class Telemetry():
   def __init__(self, meters):
     self.meters = meters
     self.outputs = []
-    self.step_num = 1
+    self.step_num = 0
 
   def add_output(self, output):
     self.outputs.append(output)
@@ -15,7 +15,8 @@ class Telemetry():
     for output in self.outputs:
       output.render_all(self.step_num, self.meters)
     for meter_name, meter in self.meters.items():
-      meter.reset()
+      if not hasattr(meter, 'skip_reset') or not meter.skip_reset:
+        meter.reset()
     self.step_num += 1
 
   def __getitem__(self, meter_name):
@@ -46,12 +47,11 @@ class TelemetryOutput():
       meters_without_cells = set(meters.keys()) - set(self.cell_index.keys())
       for meter_name in sorted(meters_without_cells):
         meter = meters[meter_name]
-        cell = None
-        if meter.__class__ in self.__class__.auto_cell_types:
+        if hasattr(self.__class__, 'auto_cell_types') and meter.__class__ in self.__class__.auto_cell_types:
           cell = self.__class__.auto_cell_types[meter.__class__](meter_name, meter)
-        if cell is not None:
-          self.cell_list.append(([meter_name], cell))
-          self.cell_index[meter_name] = cell
+          if cell is not None:
+            self.cell_list.append(([meter_name], cell))
+            self.cell_index[meter_name] = cell
 
   def render_all(self, step_num, meters):
     render_results = []
