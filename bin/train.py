@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 
 import torch
-import torch.nn as nn
-from torchvision.models import resnet34
 import torchvision.transforms as transforms
 from PIL.ImageDraw import Draw
-from torch.utils import model_zoo
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.optim as optim
@@ -13,14 +10,16 @@ import torchnet.meter
 import gc
 import argparse
 import datetime
+import json
 
 import os, sys, inspect
 cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, os.path.dirname(cur_dir)) 
 
-from dsnt.nn import DSNT, EuclideanLoss
+from dsnt.nn import EuclideanLoss
 from dsnt.data import MPIIDataset
 from dsnt.eval import PCKhEvaluator
+from dsnt.model import build_mpii_pose_model
 import tele, tele.meter, tele.output.console, tele.output.folder
 
 parser = argparse.ArgumentParser(description='DSNT human pose model trainer')
@@ -48,39 +47,11 @@ truncate = args.truncate
 initial_lr = 0.1
 experiment_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S%f')
 
-ResNet34_URL = 'https://download.pytorch.org/models/resnet34-333f7ec4.pth'
-
-class ResNetLocalizer(nn.Module):
-  def __init__(self, resnet, n_chans=1, truncate=0):
-    super(ResNetLocalizer, self).__init__()
-    self.n_chans = n_chans
-    fcn_modules = [
-      resnet.conv1,
-      resnet.bn1,
-      resnet.relu,
-      resnet.maxpool,
-    ]
-    resnet_groups = [resnet.layer1, resnet.layer2, resnet.layer3, resnet.layer4]
-    fcn_modules.extend(resnet_groups[:len(resnet_groups)-truncate])
-    self.fcn = nn.Sequential(*fcn_modules)
-    feats = fcn_modules[-1][0].conv1.out_channels
-    self.hm_conv = nn.Conv2d(feats, self.n_chans, kernel_size=1, bias=False)
-    self.hm_preact = nn.Softmax()
-    self.hm_dsnt = DSNT()
-    self.out_size = 7 * (2 ** truncate)
-  
-  def forward(self, x):
-    x = self.fcn(x)
-    x = self.hm_conv(x)
-    x = x.view(-1, self.out_size*self.out_size)
-    x = self.hm_preact(x)
-    x = x.view(-1, self.n_chans, self.out_size, self.out_size)
-    x = self.hm_dsnt(x)
-    return x
-
-resnet34_model = resnet34()
-resnet34_model.load_state_dict(model_zoo.load_url(ResNet34_URL, './models'))
-model = ResNetLocalizer(resnet34_model, n_chans=16, truncate=truncate)
+model_desc = {
+  'base': 'resnet-34',
+  'truncate': truncate,
+}
+model = build_mpii_pose_model(**model_desc)
 model.cuda()
 
 criterion = EuclideanLoss()
@@ -120,6 +91,7 @@ tel = tele.Telemetry({
   'args': tele.meter.ValueMeter(skip_reset=True),
   'train_pckh_all': train_eval.meters['all'],
   'val_pckh_all': val_eval.meters['all'],
+  'val_preds': tele.meter.ValueMeter(),
 })
 
 console_output = tele.output.console.ConsoleOutput()
@@ -130,13 +102,20 @@ console_output.set_cells([([mn], tele.output.console.TextCell()) for mn in meter
 console_output.set_auto_default_cell(False)
 tel.add_output(console_output)
 
+exp_out_dir = None
 if out_dir:
-  folder_output = tele.output.folder.FolderOutput(os.path.join('out', experiment_id))
-  folder_output.set_cells([(
-    ['epoch', 'train_loss', 'val_loss', 'epoch_time', 'train_pckh_all', 'val_pckh_all'],
-    tele.output.folder.GrowingJSONCell('saved_metrics.json')
-  )])
+  exp_out_dir = os.path.join('out', experiment_id)
+  folder_output = tele.output.folder.FolderOutput(exp_out_dir)
+  folder_output.set_cells([
+    (['epoch', 'train_loss', 'val_loss', 'epoch_time', 'train_pckh_all', 'val_pckh_all'],
+      tele.output.folder.GrowingJSONCell('saved_metrics.json')),
+    (['val_preds'],
+      tele.output.folder.HDF5Cell('val_preds_{:04d}.h5', {'val_preds': 'preds'})),
+  ])
   tel.add_output(folder_output)
+
+  with open(os.path.join(exp_out_dir, 'model_desc.json'), 'w') as f:
+    json.dump(model_desc, f)
 
 if showoff_netloc:
   import pyshowoff, tele.output.showoff
@@ -171,7 +150,7 @@ else:
 
 def adjust_learning_rate(optimizer, epoch):
   decay_factor = 0.5
-  step_width = 25
+  step_width = 50
   lr = initial_lr * (decay_factor ** (epoch // step_width))
   for param_group in optimizer.param_groups:
     param_group['lr'] = lr
@@ -212,6 +191,7 @@ def train(epoch):
 
 def validate(epoch):
   model.eval()
+  val_preds = torch.FloatTensor(len(val_data), 16, 2)
 
   for i, batch in enumerate(val_loader):
     in_var = Variable(batch['input'].cuda(), requires_grad=False)
@@ -223,11 +203,21 @@ def validate(epoch):
     tel['val_loss'].add(loss.data[0])
     eval_metrics_for_batch(val_eval, batch, out_var.data)
 
+    # TODO: Use double precision?
+    preds = torch.FloatTensor(out_var.data.size())
+    preds.copy_(out_var.data)
+    pos = i * batch_size
+    orig_preds = val_preds[pos:pos+preds.size(0)]
+    torch.bmm(preds, batch['transform_m'], out=orig_preds)
+    orig_preds.add_(batch['transform_b'].expand_as(preds))
+
     if i == 0:
       vis['val_images'] = batch['input']
-      vis['val_preds'] = out_var.data.cpu()
+      vis['val_preds'] = preds
       vis['val_masks'] = batch['part_mask']
       vis['val_coords'] = batch['part_coords']
+
+  tel['val_preds'].set_value(val_preds.numpy())
 
 # Joints to connect for visualisation, giving the effect of drawing a
 # basic "skeleton" of the pose.
@@ -294,6 +284,9 @@ for epoch in range(epochs):
     draw_skeleton_(img, vis['val_preds'][i], vis['val_masks'][i])
     val_sample.append(img)
   tel['val_sample'].set_value(val_sample)
+
+  if exp_out_dir:
+    torch.save(model.state_dict(), os.path.join(exp_out_dir, 'model_final.pth'))
 
   tel.step()
   train_eval.reset()
