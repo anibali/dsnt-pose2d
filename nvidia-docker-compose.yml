@@ -5,6 +5,7 @@ services:
     - /dev/nvidia1
     - /dev/nvidiactl
     - /dev/nvidia-uvm
+    - /dev/nvidia-uvm-tools
     env_file:
     - ./env/postgres.env
     environment:
@@ -20,6 +21,7 @@ services:
     - /dev/nvidia1
     - /dev/nvidiactl
     - /dev/nvidia-uvm
+    - /dev/nvidia-uvm-tools
     environment:
     - DISPLAY
     - PYTHONIOENCODING=utf_8
@@ -37,6 +39,7 @@ services:
     - /dev/nvidia1
     - /dev/nvidiactl
     - /dev/nvidia-uvm
+    - /dev/nvidia-uvm-tools
     env_file:
     - ./env/postgres.env
     image: showoff

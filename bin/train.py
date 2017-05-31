@@ -6,6 +6,7 @@ from PIL.ImageDraw import Draw
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.optim as optim
+from torch.optim.lr_scheduler import StepLR
 import torchnet.meter
 import gc
 import argparse
@@ -35,6 +36,12 @@ parser.add_argument('--out-dir', type=str, default='out', metavar='PATH',
   help='path to output directory (default="out")')
 parser.add_argument('--truncate', type=int, default=0, metavar='N',
   help='number of ResNet layer groups to cut off (default=0)')
+parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
+  help='initial learning rate for SGD (default=0.1)')
+parser.add_argument('--schedule-step', type=int, default=50, metavar='N',
+  help='number of epochs per LR drop (default=50)')
+parser.add_argument('--schedule-gamma', type=float, default=0.5, metavar='G',
+  help='factor to multiply the LR by at each drop (default=0.5)')
 args = parser.parse_args()
 
 epochs = args.epochs
@@ -43,8 +50,10 @@ showoff_netloc = args.showoff
 use_train_aug = not args.no_aug
 out_dir = args.out_dir
 truncate = args.truncate
+initial_lr = args.lr
+schedule_step = args.schedule_step
+schedule_gamma = args.schedule_gamma
 
-initial_lr = 0.1
 experiment_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S%f')
 
 model_desc = {
@@ -148,20 +157,17 @@ if showoff_netloc:
 else:
   progress_frame = None
 
-def adjust_learning_rate(optimizer, epoch):
-  decay_factor = 0.5
-  step_width = 50
-  lr = initial_lr * (decay_factor ** (epoch // step_width))
-  for param_group in optimizer.param_groups:
-    param_group['lr'] = lr
 
+# Initialize optimiser and learning rate scheduler
 optimizer = optim.SGD(model.parameters(), lr=initial_lr, momentum=0.9)
+scheduler = StepLR(optimizer, schedule_step, schedule_gamma)
 
+# `vis` will hold a few samples for visualisation
 vis = {}
 
 def train(epoch):
   model.train()
-  adjust_learning_rate(optimizer, epoch)
+  scheduler.step(epoch)
   samples_processed = 0
 
   for i, batch in enumerate(train_loader):
@@ -286,7 +292,13 @@ for epoch in range(epochs):
   tel['val_sample'].set_value(val_sample)
 
   if exp_out_dir:
-    torch.save(model.state_dict(), os.path.join(exp_out_dir, 'model_final.pth'))
+    state = {
+      'state_dict': model.state_dict(),
+      'model_desc': model_desc,
+      'optimizer': optimizer.state_dict(),
+      'epoch': epoch + 1,
+    }
+    torch.save(state, os.path.join(exp_out_dir, 'model.pth'))
 
   tel.step()
   train_eval.reset()
