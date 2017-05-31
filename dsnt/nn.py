@@ -23,7 +23,7 @@ class DSNT(nn.Module):
   # Prepare the fixed weight matrix used in the forward and backward passes
   def prepare_fixed_weights(self, width, height, tensor_new):
     # Return early if the fixed_weights matrix already exists and is valid
-    if self.fixed_weights and width == self.width and height == self.height:
+    if self.fixed_weights is not None and width == self.width and height == self.height:
       return self.fixed_weights
     self.width = width
     self.height = height

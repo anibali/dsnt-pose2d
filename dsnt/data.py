@@ -31,18 +31,18 @@ class MPIIDataset(Dataset):
 
     with h5py_cache.File(self.h5_file, 'r', chunk_cache_mem_size=1024**3) as f:
       raw_image = torch.from_numpy(f[subset]['images'][index])
-      trans_m = torch.from_numpy(f[subset]['transforms/m'][index])
-      trans_b = torch.from_numpy(f[subset]['transforms/b'][index])
+      trans_m = torch.from_numpy(f[subset]['transforms/m'][index]).double()
+      trans_b = torch.from_numpy(f[subset]['transforms/b'][index]).double()
       normalize = f[subset]['normalize'][index]
 
       if 'parts' in f[subset]:
         part_coords = torch.from_numpy(f[subset]['parts/coords'][index])
         norm_target = part_coords.double()
-        orig_target = torch.mm(norm_target, trans_m.double()).add_(trans_b.double().expand_as(norm_target))
+        orig_target = torch.mm(norm_target, trans_m).add_(trans_b.expand_as(norm_target))
         part_mask = orig_target[:, 0].gt(1).mul(orig_target[:, 1].gt(1))
       else:
         part_coords = None
-        part_mask = None
+        part_mask = torch.ByteTensor(16, 2).fill_(1)
 
     ### Calculate augmentations ###
 
@@ -57,7 +57,7 @@ class MPIIDataset(Dataset):
 
     ### Build transformation matrix ###
 
-    t = torch.eye(3).float()
+    t = torch.eye(3).double()
     # Zero-center
     t = torch.mm(t.new([
       [1, 0, -549 / 2],
@@ -88,7 +88,7 @@ class MPIIDataset(Dataset):
     ### Transform joint coords ###
 
     if part_coords is not None:
-      coords = torch.FloatTensor(part_coords.size(0), 3)
+      coords = torch.DoubleTensor(part_coords.size(0), 3)
       coords[:, 0:2].copy_(part_coords)
       coords[:, 2].fill_(1)
       part_coords.copy_(torch.mm(coords, t.transpose(0, 1))[:, 0:2])
@@ -99,12 +99,12 @@ class MPIIDataset(Dataset):
         part_coords.scatter_(0, hflip_indices_2d, part_coords.clone())
         part_mask.scatter_(0, MPIIDataset.HFLIP_INDICES, part_mask.clone())
 
-    # Mask out joints that have been transformed to a location outside of the
-    # image bounds
-    for i in range(part_coords.size(0)):
-      x, y = part_coords[i].tolist()
-      if x < -1 or x > 1 or y < -1 or y > 1:
-        part_mask[i] = 0
+      # Mask out joints that have been transformed to a location outside of the
+      # image bounds
+      for i in range(part_coords.size(0)):
+        x, y = part_coords[i].tolist()
+        if x < -1 or x > 1 or y < -1 or y > 1:
+          part_mask[i] = 0
 
     ### Transform image ###
 
@@ -134,7 +134,7 @@ class MPIIDataset(Dataset):
     # matrices can't rearrange joints for the user. It is up to the user to
     # check "hflip" and flip the joints appropriately.
 
-    u = torch.eye(3).float()
+    u = torch.eye(3).double()
     u[0:2, 0:2].copy_(trans_m)
     u[0:2, 2].copy_(trans_b)
     s = torch.mm(u, torch.inverse(t))
@@ -148,9 +148,10 @@ class MPIIDataset(Dataset):
       'transform_b':  trans_b,
       'transform_m':  trans_m,
       'input':        input_image,
-      'part_coords':  part_coords,
       'part_mask':    part_mask,
       'hflip':        hflip,
     }
+    if part_coords is not None:
+      sample['part_coords'] = part_coords
 
     return sample

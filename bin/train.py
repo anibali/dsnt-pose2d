@@ -2,7 +2,6 @@
 
 import torch
 import torchvision.transforms as transforms
-from PIL.ImageDraw import Draw
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.optim as optim
@@ -21,6 +20,8 @@ from dsnt.nn import EuclideanLoss
 from dsnt.data import MPIIDataset
 from dsnt.eval import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
+from dsnt.visualize import make_dot
+from dsnt.util import draw_skeleton
 import tele, tele.meter, tele.output.console, tele.output.folder
 
 parser = argparse.ArgumentParser(description='DSNT human pose model trainer')
@@ -78,12 +79,12 @@ def eval_metrics_for_batch(evaluator, batch, norm_out):
   norm_out = norm_out.type(torch.DoubleTensor)
 
   # Coords in orginal MPII dataset space
-  orig_out = torch.bmm(norm_out, batch['transform_m'].double()).add_(
-    batch['transform_b'].double().expand_as(norm_out))
+  orig_out = torch.bmm(norm_out, batch['transform_m']).add_(
+    batch['transform_b'].expand_as(norm_out))
 
   norm_target = batch['part_coords'].double()
-  orig_target = torch.bmm(norm_target, batch['transform_m'].double()).add_(
-    batch['transform_b'].double().expand_as(norm_target))
+  orig_target = torch.bmm(norm_target, batch['transform_m']).add_(
+    batch['transform_b'].expand_as(norm_target))
 
   head_lengths = batch['normalize'].double()
 
@@ -101,6 +102,7 @@ tel = tele.Telemetry({
   'train_pckh_all': train_eval.meters['all'],
   'val_pckh_all': val_eval.meters['all'],
   'val_preds': tele.meter.ValueMeter(),
+  'model_graph': tele.meter.ValueMeter(skip_reset=True),
 })
 
 console_output = tele.output.console.ConsoleOutput()
@@ -148,6 +150,8 @@ if showoff_netloc:
       tele.output.showoff.ImageCell('Training samples', images_per_row=2)),
     (['val_sample'],
       tele.output.showoff.ImageCell('Validation samples', images_per_row=2)),
+    (['model_graph'],
+      tele.output.showoff.GraphvizCell('Model graph')),
   ])
   showoff_output.set_auto_default_cell(False)
   tel.add_output(showoff_output)
@@ -157,6 +161,11 @@ if showoff_netloc:
 else:
   progress_frame = None
 
+# Generate a Graphviz graph to visualise the model
+dummy_data = torch.cuda.FloatTensor(1, 3, 224, 224).uniform_(0, 1)
+out_var = model(Variable(dummy_data, requires_grad=False))
+tel['model_graph'].set_value(make_dot(out_var, dict(model.named_parameters())))
+dummy_data = None
 
 # Initialize optimiser and learning rate scheduler
 optimizer = optim.SGD(model.parameters(), lr=initial_lr, momentum=0.9)
@@ -197,7 +206,7 @@ def train(epoch):
 
 def validate(epoch):
   model.eval()
-  val_preds = torch.FloatTensor(len(val_data), 16, 2)
+  val_preds = torch.DoubleTensor(len(val_data), 16, 2)
 
   for i, batch in enumerate(val_loader):
     in_var = Variable(batch['input'].cuda(), requires_grad=False)
@@ -209,8 +218,7 @@ def validate(epoch):
     tel['val_loss'].add(loss.data[0])
     eval_metrics_for_batch(val_eval, batch, out_var.data)
 
-    # TODO: Use double precision?
-    preds = torch.FloatTensor(out_var.data.size())
+    preds = torch.DoubleTensor(out_var.data.size())
     preds.copy_(out_var.data)
     pos = i * batch_size
     orig_preds = val_preds[pos:pos+preds.size(0)]
@@ -224,46 +232,6 @@ def validate(epoch):
       vis['val_coords'] = batch['part_coords']
 
   tel['val_preds'].set_value(val_preds.numpy())
-
-# Joints to connect for visualisation, giving the effect of drawing a
-# basic "skeleton" of the pose.
-bones = {
-  'right_lower_leg':    (0, 1),
-  'right_upper_leg':    (1, 2),
-  'right_pelvis':       (2, 6),
-  'left_lower_leg':     (4, 5),
-  'left_upper_leg':     (3, 4),
-  'left_pelvis':        (3, 6),
-  'center_lower_torso': (6, 7),
-  'center_upper_torso': (7, 8),
-  'center_head':        (8, 9),
-  'right_lower_arm':    (10, 11),
-  'right_upper_arm':    (11, 12),
-  'right_shoulder':     (12, 8),
-  'left_lower_arm':     (14, 15),
-  'left_upper_arm':     (13, 14),
-  'left_shoulder':      (13, 8),
-}
-
-def draw_skeleton_(img, part_coords, joint_mask=None):
-  coords = (part_coords.cpu() + 1) * (224 / 2)
-  draw = Draw(img)
-  for bone_name, (j1, j2) in bones.items():
-    if bone_name.startswith('center_'):
-      colour = (255, 0, 255)  # Magenta
-    elif bone_name.startswith('left_'):
-      colour = (0, 0, 255)    # Blue
-    elif bone_name.startswith('right_'):
-      colour = (255, 0, 0)    # Red
-    else:
-      colour = (255, 255, 255)
-    
-    if joint_mask is not None:
-      # Change colour to grey if either vertex is not masked in
-      if joint_mask[j1] == 0 or joint_mask[j2] == 0:
-        colour = (100, 100, 100)
-
-    draw.line([coords[j1, 0], coords[j1, 1], coords[j2, 0], coords[j2, 1]], fill=colour)
 
 tel['experiment_id'].set_value(experiment_id)
 tel['args'].set_value(vars(args))
@@ -280,14 +248,16 @@ for epoch in range(epochs):
   train_sample = []
   for i in range(min(16, vis['train_images'].size(0))):
     img = transforms.ToPILImage()(vis['train_images'][i])
-    draw_skeleton_(img, vis['train_preds'][i], vis['train_masks'][i])
+    coords = (vis['train_preds'][i].cpu() + 1) * (224 / 2)
+    draw_skeleton(img, coords, vis['train_masks'][i])
     train_sample.append(img)
   tel['train_sample'].set_value(train_sample)
 
   val_sample = []
   for i in range(min(16, vis['val_images'].size(0))):
     img = transforms.ToPILImage()(vis['val_images'][i])
-    draw_skeleton_(img, vis['val_preds'][i], vis['val_masks'][i])
+    coords = (vis['val_preds'][i].cpu() + 1) * (224 / 2)
+    draw_skeleton(img, coords, vis['val_masks'][i])
     val_sample.append(img)
   tel['val_sample'].set_value(val_sample)
 
