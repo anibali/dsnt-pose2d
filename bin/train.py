@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+#
+# This script will train a model on the MPII Human Pose dataset.
+#
+# It is expected that the full dataset is available in
+# `/data/dlds/mpii-human-pose/`, which should be installed
+# using [DLDS](https://github.com/anibali/dlds).
 
 import torch
 import torchvision.transforms as transforms
@@ -7,14 +13,13 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 import torchnet.meter
-import gc
 import argparse
 import datetime
 import json
 
 import os, sys, inspect
 cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0, os.path.dirname(cur_dir)) 
+sys.path.insert(0, os.path.dirname(cur_dir))
 
 from dsnt.nn import EuclideanLoss
 from dsnt.data import MPIIDataset
@@ -23,6 +28,10 @@ from dsnt.model import build_mpii_pose_model
 from dsnt.visualize import make_dot
 from dsnt.util import draw_skeleton
 import tele, tele.meter, tele.output.console, tele.output.folder
+
+####
+# Options
+####
 
 parser = argparse.ArgumentParser(description='DSNT human pose model trainer')
 parser.add_argument('--epochs', type=int, default=100, metavar='N',
@@ -35,6 +44,8 @@ parser.add_argument('--no-aug', action='store_true', default=False,
   help='disable training data augmentation')
 parser.add_argument('--out-dir', type=str, default='out', metavar='PATH',
   help='path to output directory (default="out")')
+parser.add_argument('--base-model', type=str, default='resnet34', metavar='BM',
+  help='base model type (default="resnet34")')
 parser.add_argument('--truncate', type=int, default=0, metavar='N',
   help='number of ResNet layer groups to cut off (default=0)')
 parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
@@ -50,6 +61,7 @@ batch_size = args.batch_size
 showoff_netloc = args.showoff
 use_train_aug = not args.no_aug
 out_dir = args.out_dir
+base_model = args.base_model
 truncate = args.truncate
 initial_lr = args.lr
 schedule_step = args.schedule_step
@@ -57,8 +69,12 @@ schedule_gamma = args.schedule_gamma
 
 experiment_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S%f')
 
+####
+# Model and criterion
+####
+
 model_desc = {
-  'base': 'resnet-34',
+  'base': base_model,
   'truncate': truncate,
 }
 model = build_mpii_pose_model(**model_desc)
@@ -67,10 +83,18 @@ model.cuda()
 criterion = EuclideanLoss()
 criterion.cuda()
 
+####
+# Data
+####
+
 train_data = MPIIDataset('/data/dlds/mpii-human-pose', 'train', use_aug=use_train_aug)
 val_data = MPIIDataset('/data/dlds/mpii-human-pose', 'val', use_aug=False)
 train_loader = DataLoader(train_data, batch_size, num_workers=4, pin_memory=True)
 val_loader = DataLoader(val_data, batch_size, num_workers=4, pin_memory=True)
+
+####
+# Metrics and visualisation
+####
 
 train_eval = PCKhEvaluator()
 val_eval = PCKhEvaluator()
@@ -161,6 +185,9 @@ if showoff_netloc:
 else:
   progress_frame = None
 
+tel['experiment_id'].set_value(experiment_id)
+tel['args'].set_value(vars(args))
+
 # Generate a Graphviz graph to visualise the model
 dummy_data = torch.cuda.FloatTensor(1, 3, 224, 224).uniform_(0, 1)
 out_var = model(Variable(dummy_data, requires_grad=False))
@@ -174,7 +201,13 @@ scheduler = StepLR(optimizer, schedule_step, schedule_gamma)
 # `vis` will hold a few samples for visualisation
 vis = {}
 
+####
+# Training
+####
+
 def train(epoch):
+  """Do a full pass over the training set, updating model parameters."""
+
   model.train()
   scheduler.step(epoch)
   samples_processed = 0
@@ -205,6 +238,8 @@ def train(epoch):
       progress_frame.progress(epoch * len(train_data) + samples_processed, epochs * len(train_data))
 
 def validate(epoch):
+  """Do a full pass over the validation set, evaluating model performance."""
+
   model.eval()
   val_preds = torch.DoubleTensor(len(val_data), 16, 2)
 
@@ -233,17 +268,12 @@ def validate(epoch):
 
   tel['val_preds'].set_value(val_preds.numpy())
 
-tel['experiment_id'].set_value(experiment_id)
-tel['args'].set_value(vars(args))
-
 for epoch in range(epochs):
   tel['epoch'].set_value(epoch)
   tel['epoch_time'].reset()
 
   train(epoch)
-  gc.collect()
   validate(epoch)
-  gc.collect()
 
   train_sample = []
   for i in range(min(16, vis['train_images'].size(0))):

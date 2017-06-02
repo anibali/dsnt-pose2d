@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+#
+# This script will generate predictions from a trained model.
+# It can also calculate PCKh accuracies from predictions for the training and
+# validation subsets.
+#
+# It is expected that the full dataset is available in
+# `/data/dlds/mpii-human-pose/`, which should be installed
+# using [DLDS](https://github.com/anibali/dlds).
+#
+# Furthermore, the prediction visualisation functionality in this script
+# requires access to the original, unprocessed JPEGs from the official MPII
+# dataset release in `/data/dlds/cache/mpii-human-pose/images/`.
+# Using `--visualize` is optional.
 
 import torch
 import argparse
@@ -41,6 +54,8 @@ with h5py.File(actual_file, 'r') as f:
 joint_mask = actual.select(2, 0).gt(1).mul(actual.select(2, 1).gt(1))
 
 if model_file:
+  # Generate predictions with the model
+
   def progress(count, total):
     bar_len = 60
     filled_len = round(bar_len * count / total)
@@ -75,23 +90,29 @@ if model_file:
     completed += in_var.data.size(0)
     progress(completed, len(dataset))
 
+  # Save predictions to file
   if preds_file:
     with h5py.File(preds_file, 'w') as f:
       f.create_dataset('preds', data=preds.numpy())
 elif preds_file:
+  # Load predictions from file
   with h5py.File(preds_file, 'r') as f:
     preds = torch.from_numpy(f['preds'][:])
 else:
+  # We need to get predictions from somewhere!
   raise 'at least one of "--preds" and "--model" must be present'
 
+# Calculate PCKh accuracies
 evaluator = PCKhEvaluator()
 evaluator.add(preds, actual, joint_mask, head_lengths)
 
+# Print PCKh accuracies
 for meter_name in sorted(evaluator.meters.keys()):
   meter = evaluator.meters[meter_name]
   mean, std = meter.value()
   print(meter_name, mean)
 
+# Visualise predictions
 if visualize:
   import tkinter as tk
   from PIL import ImageTk, Image, ImageDraw

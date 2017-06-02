@@ -75,10 +75,24 @@ class DSNT(nn.Module):
     return output.view(output_size)
 
 class EuclideanLoss(nn.Module):
+  """Computes the average Euclidean distance for multiple points."""
+
   def __init__(self):
     super().__init__()
 
   def forward(self, input, target, mask=None):
+    """Calculate the average Euclidean loss for multi-point samples.
+
+    Each sample must contain `n` points, each with `d` dimensions. For example,
+    in the MPII human pose estimation task n=16 (16 joint locations) and
+    d=2 (locations are 2D).
+
+    Args:
+      input (Tensor): Predictions ([batches x] n x d)
+      target (Tensor): Ground truth target ([batches x] n x d)
+      mask (Tensor, optional): Mask of points to include in the loss calculation
+        ([batches x] n), defaults to including everything
+    """
     if input.dim() == 2:
       batch_mode = False
       batch_size = 1
@@ -103,5 +117,3 @@ class EuclideanLoss(nn.Module):
     loss = dist.sum() / (batch_size * n_chans)
 
     return loss
-
-__all__ = ['DSNT', 'EuclideanLoss']

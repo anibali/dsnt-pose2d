@@ -7,7 +7,7 @@ from torch.autograd import Variable
 
 
 def make_dot(var, params):
-  """ Produces Graphviz representation of PyTorch autograd graph
+  """Produces Graphviz representation of PyTorch autograd graph
   
   Blue nodes are the Variables that require grad, orange are Tensors
   saved for backward in torch.autograd.Function

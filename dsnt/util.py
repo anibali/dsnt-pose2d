@@ -21,6 +21,21 @@ bones = {
 }
 
 def draw_skeleton(img, coords, joint_mask=None):
+  """Draw a pose skeleton connecting joints (for visualisation purposes).
+
+  Left-hand-side joints are connected with blue lines. Right-hand-size joints
+  are connected with red lines. Center joints are connected with magenta
+  lines.
+
+  Args:
+    img (PIL.Image.Image): PIL image which the skeleton will be drawn over.
+    coords (Tensor): 16x2 tensor containing 0-based pixel coordinates
+      of joint locations. Joints indices are expected to match
+      http://human-pose.mpi-inf.mpg.de/#download
+    joint_mask (Tensor, optional): Mask of valid joints (invalid joints
+      will be drawn with grey lines).
+  """
+
   draw = Draw(img)
   for bone_name, (j1, j2) in bones.items():
     if bone_name.startswith('center_'):

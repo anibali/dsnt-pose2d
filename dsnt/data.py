@@ -9,11 +9,24 @@ import random
 import math
 
 class MPIIDataset(Dataset):
+  # This tensor describes how to rearrange joint indices in the case of a
+  # horizontal flip transformation.
   HFLIP_INDICES = torch.LongTensor([
     5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 15, 14, 13, 12, 11, 10
   ])
 
   def __init__(self, data_dir, subset='train', use_aug=False):
+    """Creates a Dataset object for loading MPII Human Pose data.
+
+    It is expected that the data has been downloaded and preprocessed using
+    [DLDS](https://github.com/anibali/dlds).
+
+    Args:
+      data_dir: path to the directory containing `mpii-human-pose.h5`
+      subset: subset of the data to load ("train", "val", or "test")
+      use_aug: set to `True` to enable random data augmentation
+    """
+
     super().__init__()
 
     h5_file = path.join(data_dir, 'mpii-human-pose.h5')
