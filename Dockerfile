@@ -90,5 +90,8 @@ RUN conda install -y --name pytorch-py36 graphviz=2.38.0 \
  && conda clean -ya
 RUN pip install graphviz
 
+# Install tele
+RUN pip install git+https://github.com/anibali/tele.git@e8a508a1c527f2045233191416c79be528b353e4
+
 # Set the default command to python3
 CMD ["python3"]

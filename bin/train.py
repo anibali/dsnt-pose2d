@@ -27,15 +27,15 @@ from dsnt.eval import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
 from dsnt.visualize import make_dot
 from dsnt.util import draw_skeleton
-import tele, tele.meter, tele.output.console, tele.output.folder
+import tele, tele.meter, tele.output.console
 
 ####
 # Options
 ####
 
 parser = argparse.ArgumentParser(description='DSNT human pose model trainer')
-parser.add_argument('--epochs', type=int, default=100, metavar='N',
-  help='number of epochs to train (default=100)')
+parser.add_argument('--epochs', type=int, default=200, metavar='N',
+  help='number of epochs to train (default=200)')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N',
   help='input batch size (default=32)')
 parser.add_argument('--showoff', type=str, default='showoff:3000', metavar='HOST:PORT',
@@ -48,8 +48,8 @@ parser.add_argument('--base-model', type=str, default='resnet34', metavar='BM',
   help='base model type (default="resnet34")')
 parser.add_argument('--truncate', type=int, default=0, metavar='N',
   help='number of ResNet layer groups to cut off (default=0)')
-parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
-  help='initial learning rate for SGD (default=0.1)')
+parser.add_argument('--lr', type=float, default=0.2, metavar='LR',
+  help='initial learning rate for SGD (default=0.2)')
 parser.add_argument('--schedule-step', type=int, default=50, metavar='N',
   help='number of epochs per LR drop (default=50)')
 parser.add_argument('--schedule-gamma', type=float, default=0.5, metavar='G',
@@ -68,6 +68,7 @@ schedule_step = args.schedule_step
 schedule_gamma = args.schedule_gamma
 
 experiment_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S%f')
+exp_out_dir = os.path.join(out_dir, experiment_id) if out_dir else None
 
 ####
 # Model and criterion
@@ -129,37 +130,33 @@ tel = tele.Telemetry({
   'model_graph': tele.meter.ValueMeter(skip_reset=True),
 })
 
-console_output = tele.output.console.ConsoleOutput()
+# Console output
 meters_to_print = [
   'train_loss', 'val_loss', 'train_pckh_all', 'val_pckh_all', 'epoch_time'
 ]
-console_output.set_cells([([mn], tele.output.console.TextCell()) for mn in meters_to_print])
-console_output.set_auto_default_cell(False)
-tel.add_output(console_output)
+tel.sink(tele.output.console.Conf(),
+  [([mn], tele.output.console.TextCell()) for mn in meters_to_print])
 
-exp_out_dir = None
-if out_dir:
-  exp_out_dir = os.path.join('out', experiment_id)
-  folder_output = tele.output.folder.FolderOutput(exp_out_dir)
-  folder_output.set_cells([
+# Folder output
+if exp_out_dir:
+  import tele.output.folder
+
+  tel.sink(tele.output.folder.Conf(exp_out_dir), [
     (['epoch', 'train_loss', 'val_loss', 'epoch_time', 'train_pckh_all', 'val_pckh_all'],
       tele.output.folder.GrowingJSONCell('saved_metrics.json')),
     (['val_preds'],
       tele.output.folder.HDF5Cell('val_preds_{:04d}.h5', {'val_preds': 'preds'})),
   ])
-  tel.add_output(folder_output)
 
-  with open(os.path.join(exp_out_dir, 'model_desc.json'), 'w') as f:
-    json.dump(model_desc, f)
-
+# Showoff output
+progress_frame = None
 if showoff_netloc:
   import pyshowoff, tele.output.showoff
 
   client = pyshowoff.Client(showoff_netloc)
   notebook = client.new_notebook('Human pose')
 
-  showoff_output = tele.output.showoff.ShowoffOutput(notebook)
-  showoff_output.set_cells([
+  tel.sink(tele.output.showoff.Conf(notebook), [
     (['train_loss', 'val_loss'],
       tele.output.showoff.LineGraphCell('Loss')),
     (['train_pckh_all', 'val_pckh_all'],
@@ -177,14 +174,11 @@ if showoff_netloc:
     (['model_graph'],
       tele.output.showoff.GraphvizCell('Model graph')),
   ])
-  showoff_output.set_auto_default_cell(False)
-  tel.add_output(showoff_output)
 
   progress_frame = notebook.new_frame('Progress',
     bounds={'x': 0, 'y': 924, 'width': 1920, 'height': 64})
-else:
-  progress_frame = None
 
+# Set constant values
 tel['experiment_id'].set_value(experiment_id)
 tel['args'].set_value(vars(args))
 
