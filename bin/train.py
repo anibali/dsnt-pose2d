@@ -27,7 +27,7 @@ from dsnt.eval import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
 from dsnt.visualize import make_dot
 from dsnt.util import draw_skeleton
-import tele, tele.meter, tele.output.console
+import tele, tele.meter
 
 ####
 # Options
@@ -131,48 +131,44 @@ tel = tele.Telemetry({
 })
 
 # Console output
+import tele.console
+import tele.console.views as views
 meters_to_print = [
   'train_loss', 'val_loss', 'train_pckh_all', 'val_pckh_all', 'epoch_time'
 ]
-tel.sink(tele.output.console.Conf(),
-  [([mn], tele.output.console.TextCell()) for mn in meters_to_print])
+tel.sink(tele.console.Conf(), [views.KeyValue([mn]) for mn in meters_to_print])
 
 # Folder output
 if exp_out_dir:
-  import tele.output.folder
+  import tele.folder
+  import tele.folder.views as views
 
-  tel.sink(tele.output.folder.Conf(exp_out_dir), [
-    (['epoch', 'train_loss', 'val_loss', 'epoch_time', 'train_pckh_all', 'val_pckh_all'],
-      tele.output.folder.GrowingJSONCell('saved_metrics.json')),
-    (['val_preds'],
-      tele.output.folder.HDF5Cell('val_preds_{:04d}.h5', {'val_preds': 'preds'})),
+  tel.sink(tele.folder.Conf(exp_out_dir), [
+    views.GrowingJSON(['epoch', 'train_loss', 'val_loss', 'epoch_time',
+      'train_pckh_all', 'val_pckh_all'], 'saved_metrics.json'),
+    views.HDF5(['val_preds'], 'val_preds_{:04d}.h5', {'val_preds': 'preds'}),
   ])
 
 # Showoff output
 progress_frame = None
 if showoff_netloc:
-  import pyshowoff, tele.output.showoff
+  import pyshowoff
+  import tele.showoff
+  import tele.showoff.views as views
 
   client = pyshowoff.Client(showoff_netloc)
   notebook = client.new_notebook('Human pose')
 
-  tel.sink(tele.output.showoff.Conf(notebook), [
-    (['train_loss', 'val_loss'],
-      tele.output.showoff.LineGraphCell('Loss')),
-    (['train_pckh_all', 'val_pckh_all'],
-      tele.output.showoff.LineGraphCell('PCKh all')),
-    (['experiment_id', 'epoch', 'train_loss', 'val_loss', 'train_pckh_all', 'val_pckh_all'],
-      tele.output.showoff.InspectValueCell('Inspect')),
-    (['epoch_time'],
-      tele.output.showoff.LineGraphCell('Time')),
-    (['args'],
-      tele.output.showoff.InspectValueCell('Command-line arguments', flatten=True)),
-    (['train_sample'],
-      tele.output.showoff.ImageCell('Training samples', images_per_row=2)),
-    (['val_sample'],
-      tele.output.showoff.ImageCell('Validation samples', images_per_row=2)),
-    (['model_graph'],
-      tele.output.showoff.GraphvizCell('Model graph')),
+  tel.sink(tele.showoff.Conf(notebook), [
+    views.LineGraph(['train_loss', 'val_loss'], 'Loss'),
+    views.LineGraph(['train_pckh_all', 'val_pckh_all'], 'PCKh all'),
+    views.Inspect(['experiment_id', 'epoch', 'train_loss', 'val_loss',
+      'train_pckh_all', 'val_pckh_all'], 'Inspect'),
+    views.LineGraph(['epoch_time'], 'Time'),
+    views.Inspect(['args'], 'Command-line arguments', flatten=True),
+    views.Images(['train_sample'], 'Training samples', images_per_row=2),
+    views.Images(['val_sample'], 'Validation samples', images_per_row=2),
+    views.Graphviz(['model_graph'], 'Model graph'),
   ])
 
   progress_frame = notebook.new_frame('Progress',
