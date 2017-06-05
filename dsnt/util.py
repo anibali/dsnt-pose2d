@@ -46,7 +46,7 @@ def draw_skeleton(img, coords, joint_mask=None):
       colour = (255, 0, 0)    # Red
     else:
       colour = (255, 255, 255)
-    
+
     if joint_mask is not None:
       # Change colour to grey if either vertex is not masked in
       if joint_mask[j1] == 0 or joint_mask[j2] == 0:

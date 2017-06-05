@@ -21,7 +21,7 @@ import h5py
 
 import os, sys, inspect
 cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0, os.path.dirname(cur_dir)) 
+sys.path.insert(0, os.path.dirname(cur_dir))
 
 from dsnt.model import build_mpii_pose_model
 from dsnt.data import MPIIDataset

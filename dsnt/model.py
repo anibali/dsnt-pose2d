@@ -33,7 +33,7 @@ class ResNetLocalizer(nn.Module):
     self.hm_preact = nn.Softmax()
     self.hm_dsnt = DSNT()
     self.out_size = 7 * (2 ** truncate)
-  
+
   def forward(self, x):
     x = self.fcn(x)
     x = self.hm_conv(x)

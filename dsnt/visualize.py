@@ -5,20 +5,19 @@ from graphviz import Digraph
 import torch
 from torch.autograd import Variable
 
-
 def make_dot(var, params):
   """Produces Graphviz representation of PyTorch autograd graph
-  
+
   Blue nodes are the Variables that require grad, orange are Tensors
   saved for backward in torch.autograd.Function
-  
+
   Args:
     var: output Variable
     params: dict of (name, Variable) to add names to node that
       require grad (TODO: make optional)
   """
   param_map = {id(v): k for k, v in params.items()}
-  
+
   node_attr = dict(style='filled',
            shape='box',
            align='left',
@@ -27,7 +26,7 @@ def make_dot(var, params):
            height='0.2')
   dot = Digraph(node_attr=node_attr, graph_attr=dict(size="12,12"))
   seen = set()
-  
+
   def size_to_str(size):
     return '('+(', ').join(['%d'% v for v in size])+')'
 
