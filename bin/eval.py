@@ -27,7 +27,7 @@ from dsnt.model import build_mpii_pose_model
 from dsnt.data import MPIIDataset
 from dsnt.eval import PCKhEvaluator
 
-parser = argparse.ArgumentParser(description='DSNT human pose model trainer')
+parser = argparse.ArgumentParser(description='DSNT human pose model evaluator')
 parser.add_argument('--model', type=str, metavar='PATH',
   help='model state file')
 parser.add_argument('--preds', type=str, metavar='PATH',
