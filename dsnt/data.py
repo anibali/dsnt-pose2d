@@ -149,10 +149,10 @@ class MPIIDataset(Dataset):
 
         u = torch.eye(3).double()
         u[0:2, 0:2].copy_(trans_m)
-        u[0:2, 2].copy_(trans_b)
+        u[0:2, 2].copy_(trans_b[0])
         s = torch.mm(u, torch.inverse(t))
         trans_m.copy_(s[0:2, 0:2])
-        trans_b.copy_(s[0:2, 2])
+        trans_b[0].copy_(s[0:2, 2])
 
         ### Return the sample ###
 
