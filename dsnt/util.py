@@ -1,8 +1,12 @@
+'''
+Miscellaneous utility functions.
+'''
+
 from PIL.ImageDraw import Draw
 
 # Joints to connect for visualisation, giving the effect of drawing a
 # basic "skeleton" of the pose.
-bones = {
+BONES = {
     'right_lower_leg': (0, 1),
     'right_upper_leg': (1, 2),
     'right_pelvis': (2, 6),
@@ -21,7 +25,7 @@ bones = {
 }
 
 def draw_skeleton(img, coords, joint_mask=None):
-    """Draw a pose skeleton connecting joints (for visualisation purposes).
+    '''Draw a pose skeleton connecting joints (for visualisation purposes).
 
     Left-hand-side joints are connected with blue lines. Right-hand-size joints
     are connected with red lines. Center joints are connected with magenta
@@ -34,10 +38,10 @@ def draw_skeleton(img, coords, joint_mask=None):
             http://human-pose.mpi-inf.mpg.de/#download
         joint_mask (Tensor, optional): Mask of valid joints (invalid joints
             will be drawn with grey lines).
-    """
+    '''
 
     draw = Draw(img)
-    for bone_name, (j1, j2) in bones.items():
+    for bone_name, (j1, j2) in BONES.items():
         if bone_name.startswith('center_'):
             colour = (255, 0, 255) # Magenta
         elif bone_name.startswith('left_'):

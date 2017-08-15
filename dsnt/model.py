@@ -1,18 +1,25 @@
+'''
+Code for building neural network models.
+'''
+
 import torch
-import torch.nn as nn
-import torchvision.models as models
+from torch import nn
 from torch.utils import model_zoo
+from torchvision import models
+
 from dsnt.nn import DSNT
 
 class ResNetLocalizer(nn.Module):
+    '''ResNet-based model for performing localization.'''
+
     def __init__(self, resnet, n_chans=1, truncate=0):
-        """Create a localisation network based on ResNet
+        '''Create a localisation network based on ResNet
 
         Args:
             resnet (nn.Module): ResNet model which will form the base of the model
             n_chans (int): Number of output locations
             truncate (int): Number of ResNet layer groups to chop off
-        """
+        '''
 
         super(ResNetLocalizer, self).__init__()
         self.n_chans = n_chans
@@ -44,12 +51,12 @@ class ResNetLocalizer(nn.Module):
         return x
 
 def build_mpii_pose_model(base='resnet34', truncate=0):
-    """Create a ResNet-based pose estimation model with pretrained parameters.
+    '''Create a ResNet-based pose estimation model with pretrained parameters.
 
         Args:
             base (str): Base ResNet model type (eg 'resnet34')
             truncate (int): Number of ResNet layer groups to chop off
-    """
+    '''
 
     assert(base.startswith('resnet'))
     model_name = base.replace('-', '')

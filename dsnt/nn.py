@@ -1,9 +1,13 @@
+'''
+Custom reusable nn modules.
+'''
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
 class DSNT(nn.Module):
-    """The DSNT layer takes n-channel spatial input and outputs n pairs of
+    '''The DSNT layer takes n-channel spatial input and outputs n pairs of
     coordinates. Works with and without batches.
 
     For example, let's say you are trying to create a network for finding the
@@ -14,14 +18,16 @@ class DSNT(nn.Module):
     Input: Spatial heatmap data (batches x n x rows x cols)
     Output: Numerical coordinates (batches x n x 2).
                     Top-left = (x=-1, y=-1), bottom-right = (x=1, y=1).
-    """
+    '''
 
     def __init__(self):
         super().__init__()
         self.fixed_weights = None
+        self.width = None
+        self.height = None
 
     # Prepare the fixed weight matrix used in the forward and backward passes
-    def prepare_fixed_weights(self, width, height, tensor_new):
+    def _prepare_fixed_weights(self, width, height, tensor_new):
         # Return early if the fixed_weights matrix already exists and is valid
         if self.fixed_weights is not None and width == self.width and height == self.height:
             return self.fixed_weights
@@ -64,7 +70,7 @@ class DSNT(nn.Module):
         else:
             raise 'DSNT expects 3D or 4D input'
 
-        fixed_weights = self.prepare_fixed_weights(width, height, x.data.new)
+        fixed_weights = self._prepare_fixed_weights(width, height, x.data.new)
 
         x_view = x.view(batch_size*n_chans, height*width)
         output = x_view.mm(fixed_weights.transpose(0, 1))
@@ -75,38 +81,35 @@ class DSNT(nn.Module):
         return output.view(output_size)
 
 class EuclideanLoss(nn.Module):
-    """Computes the average Euclidean distance for multiple points."""
+    '''Computes the average Euclidean distance for multiple points.'''
 
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, input, target, mask=None):
-        """Calculate the average Euclidean loss for multi-point samples.
+    def forward(self, actual, target, mask=None):
+        '''Calculate the average Euclidean loss for multi-point samples.
 
         Each sample must contain `n` points, each with `d` dimensions. For example,
         in the MPII human pose estimation task n=16 (16 joint locations) and
         d=2 (locations are 2D).
 
         Args:
-            input (Tensor): Predictions ([batches x] n x d)
+            actual (Tensor): Predictions ([batches x] n x d)
             target (Tensor): Ground truth target ([batches x] n x d)
             mask (Tensor, optional): Mask of points to include in the loss calculation
                 ([batches x] n), defaults to including everything
-        """
-        if input.dim() == 2:
+        '''
+        if actual.dim() == 2:
             batch_mode = False
             batch_size = 1
-            n_chans, coord_dim = list(input.size())
-        elif input.dim() == 3:
+            n_chans, coord_dim = list(actual.size())
+        elif actual.dim() == 3:
             batch_mode = True
-            batch_size, n_chans, coord_dim = list(input.size())
+            batch_size, n_chans, coord_dim = list(actual.size())
         else:
             raise 'EuclideanLoss expects 2D or 3D input'
 
         # Calculate Euclidean distances between input and target locations
-        diff = input - target
+        diff = actual - target
         diff_sq = diff * diff
-        dist_sq = diff_sq.sum(input.dim() - 1)
+        dist_sq = diff_sq.sum(actual.dim() - 1)
         dist = dist_sq.sqrt()
 
         # Apply mask to distances

@@ -1,14 +1,21 @@
+'''
+Dataset loaders.
+'''
+
+import random
+import math
+from os import path
+
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from PIL import Image
-import os.path as path
-import h5py, h5py_cache
+import h5py_cache
 import numpy as np
-import random
-import math
 
 class MPIIDataset(Dataset):
+    'Loader for the MPII human pose dataset.'
+
     # This tensor describes how to rearrange joint indices in the case of a
     # horizontal flip transformation.
     HFLIP_INDICES = torch.LongTensor([
@@ -16,7 +23,7 @@ class MPIIDataset(Dataset):
     ])
 
     def __init__(self, data_dir, subset='train', use_aug=False):
-        """Creates a Dataset object for loading MPII Human Pose data.
+        '''Creates a Dataset object for loading MPII Human Pose data.
 
         It is expected that the data has been downloaded and preprocessed using
         [DLDS](https://github.com/anibali/dlds).
@@ -25,7 +32,7 @@ class MPIIDataset(Dataset):
             data_dir: path to the directory containing `mpii-human-pose.h5`
             subset: subset of the data to load ("train", "val", or "test")
             use_aug: set to `True` to enable random data augmentation
-        """
+        '''
 
         super().__init__()
 
@@ -75,14 +82,14 @@ class MPIIDataset(Dataset):
         t = torch.mm(t.new([
             [1, 0, -549 / 2],
             [0, 1, -549 / 2],
-            [0, 0, 1 ],
+            [0, 0, 1],
         ]), t)
         if hflip:
             # Mirror x coordinate (horizontal flip)
             t = torch.mm(t.new([
                 [-1, 0, 0],
-                [ 0, 1, 0],
-                [ 0, 0, 1],
+                [0, 1, 0],
+                [0, 0, 1],
             ]), t)
         # Scale then rotate
         rads = math.radians(rot)

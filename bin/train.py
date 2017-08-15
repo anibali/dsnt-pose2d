@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
-#
-# This script will train a model on the MPII Human Pose dataset.
-#
-# It is expected that the full dataset is available in
-# `/data/dlds/mpii-human-pose/`, which should be installed
-# using [DLDS](https://github.com/anibali/dlds).
 
-import torch
-import torchvision.transforms as transforms
-from torch.autograd import Variable
-from torch.utils.data import DataLoader
-import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
-import torchnet.meter
+'''
+This script will train a model on the MPII Human Pose dataset.
+
+It is expected that the full dataset is available in
+`/data/dlds/mpii-human-pose/`, which should be installed
+using [DLDS](https://github.com/anibali/dlds).
+'''
+
+import os
+import sys
+import inspect
 import argparse
 import datetime
-import json
 
-import os, sys, inspect
+import torch
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
+from torch import optim
+from torch.optim.lr_scheduler import StepLR
+from torchvision import transforms
+import torchnet.meter
+
 cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, os.path.dirname(cur_dir))
 
@@ -196,7 +200,7 @@ vis = {}
 ####
 
 def train(epoch):
-    """Do a full pass over the training set, updating model parameters."""
+    '''Do a full pass over the training set, updating model parameters.'''
 
     model.train()
     scheduler.step(epoch)
@@ -228,7 +232,7 @@ def train(epoch):
             progress_frame.progress(epoch * len(train_data) + samples_processed, epochs * len(train_data))
 
 def validate(epoch):
-    """Do a full pass over the validation set, evaluating model performance."""
+    '''Do a full pass over the validation set, evaluating model performance.'''
 
     model.eval()
     val_preds = torch.DoubleTensor(len(val_data), 16, 2)

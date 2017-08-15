@@ -1,8 +1,13 @@
+'''
+Human pose metric evaluation code.
+'''
+
 import torch
 from torchnet.meter import AverageValueMeter
-from collections import OrderedDict
 
 class PCKhEvaluator:
+    '''Class for calculating and accumulating PCKh values.'''
+
     JOINT_NAMES = [
         'rankle', 'rknee', 'rhip', 'lhip', 'lknee', 'lankle', 'pelvis', 'thorax',
         'upperneck', 'headtop', 'rwrist', 'relbow', 'rshoulder', 'lshoulder',
@@ -17,6 +22,8 @@ class PCKhEvaluator:
             self.meters[joint_name] = AverageValueMeter()
 
     def add(self, pred, target, joint_mask, head_lengths):
+        '''Calculate and accumulate PCKh values for batch.'''
+
         batch_size = pred.size(0)
         n_joints = pred.size(1)
 
@@ -29,5 +36,7 @@ class PCKhEvaluator:
                     self.meters[PCKhEvaluator.JOINT_NAMES[j]].add(thresholded)
 
     def reset(self):
+        '''Reset accumulated values to zero.'''
+
         for meter_name, meter in self.meters.items():
             meter.reset()

@@ -1,12 +1,17 @@
-# This code is taken from:
-# https://github.com/szagoruyko/functional-zoo/blob/master/visualize.py
+'''
+The code in this file originates from another source.
+
+Source: https://github.com/szagoruyko/functional-zoo/blob/master/visualize.py
+Author: Sergey Zagoruyko
+License: None specified
+Changes: Superficial only
+'''
 
 from graphviz import Digraph
 import torch
-from torch.autograd import Variable
 
 def make_dot(var, params):
-    """Produces Graphviz representation of PyTorch autograd graph
+    '''Produces Graphviz representation of PyTorch autograd graph
 
     Blue nodes are the Variables that require grad, orange are Tensors
     saved for backward in torch.autograd.Function
@@ -15,7 +20,7 @@ def make_dot(var, params):
         var: output Variable
         params: dict of (name, Variable) to add names to node that
             require grad (TODO: make optional)
-    """
+    '''
     param_map = {id(v): k for k, v in params.items()}
 
     node_attr = dict(style='filled',
@@ -28,9 +33,11 @@ def make_dot(var, params):
     seen = set()
 
     def size_to_str(size):
-        return '('+(', ').join(['%d'% v for v in size])+')'
+        'Format tensor size as a string.'
+        return '({})'.format(', '.join(map(str, size)))
 
     def add_nodes(var):
+        'Add nodes to the Graphviz graph (called recursively).'
         if var not in seen:
             if torch.is_tensor(var):
                 dot.node(str(id(var)), size_to_str(var.size()), fillcolor='orange')

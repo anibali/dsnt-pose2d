@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
-#
-# This script will generate predictions from a trained model.
-# It can also calculate PCKh accuracies from predictions for the training and
-# validation subsets.
-#
-# It is expected that the full dataset is available in
-# `/data/dlds/mpii-human-pose/`, which should be installed
-# using [DLDS](https://github.com/anibali/dlds).
-#
-# Furthermore, the prediction visualisation functionality in this script
-# requires access to the original, unprocessed JPEGs from the official MPII
-# dataset release in `/data/dlds/cache/mpii-human-pose/images/`.
-# Using `--visualize` is optional.
+
+'''
+This script will generate predictions from a trained model.
+It can also calculate PCKh accuracies from predictions for the training and
+validation subsets.
+
+It is expected that the full dataset is available in
+`/data/dlds/mpii-human-pose/`, which should be installed
+using [DLDS](https://github.com/anibali/dlds).
+
+Furthermore, the prediction visualisation functionality in this script
+requires access to the original, unprocessed JPEGs from the official MPII
+dataset release in `/data/dlds/cache/mpii-human-pose/images/`.
+Using `--visualize` is optional.
+'''
+
+import os
+import sys
+import inspect
+import argparse
 
 import torch
-import argparse
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import h5py
 
-import os, sys, inspect
 cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, os.path.dirname(cur_dir))
 
