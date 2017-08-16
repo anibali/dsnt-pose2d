@@ -1,4 +1,3 @@
-import unittest
 import torch
 from torch.autograd import Variable
 from common import TestCase
@@ -9,7 +8,7 @@ class TestEuclideanLoss(TestCase):
     def test_forward_and_backward(self):
         criterion = EuclideanLoss()
 
-        input = torch.Tensor([
+        input_tensor = torch.Tensor([
             [[3, 4], [3, 4]],
             [[3, 4], [3, 4]],
         ])
@@ -19,7 +18,7 @@ class TestEuclideanLoss(TestCase):
             [[0, 0], [0, 0]],
         ])
 
-        in_var = Variable(input, requires_grad=True)
+        in_var = Variable(input_tensor, requires_grad=True)
 
         expected_loss = torch.Tensor([5])
         actual_loss = criterion.forward(in_var, Variable(target))

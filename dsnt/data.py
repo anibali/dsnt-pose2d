@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from PIL import Image
+import h5py  #pylint: disable=unused-import
 import h5py_cache
 import numpy as np
 

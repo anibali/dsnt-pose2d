@@ -38,5 +38,5 @@ class PCKhEvaluator:
     def reset(self):
         '''Reset accumulated values to zero.'''
 
-        for meter_name, meter in self.meters.items():
+        for meter in self.meters.values():
             meter.reset()

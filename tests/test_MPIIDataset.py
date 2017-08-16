@@ -1,7 +1,4 @@
-import unittest
 from common import TestCase
-
-import torch
 
 from dsnt.data import MPIIDataset
 

@@ -76,7 +76,10 @@ class DSNT(nn.Module):
         output = x_view.mm(fixed_weights.transpose(0, 1))
 
         # Set the appropriate view for output
-        output_size = batch_mode and [batch_size, n_chans, 2] or [n_chans, 2]
+        if batch_mode:
+            output_size = [batch_size, n_chans, 2]
+        else:
+            output_size = [n_chans, 2]
 
         return output.view(output_size)
 
@@ -97,16 +100,15 @@ class EuclideanLoss(nn.Module):
                 ([batches x] n), defaults to including everything
         '''
         if actual.dim() == 2:
-            batch_mode = False
             batch_size = 1
-            n_chans, coord_dim = list(actual.size())
         elif actual.dim() == 3:
-            batch_mode = True
-            batch_size, n_chans, coord_dim = list(actual.size())
+            batch_size = actual.size(0)
         else:
             raise 'EuclideanLoss expects 2D or 3D input'
 
-        # Calculate Euclidean distances between input and target locations
+        n_chans = actual.size(-2)
+
+        # Calculate Euclidean distances between actual and target locations
         diff = actual - target
         diff_sq = diff * diff
         dist_sq = diff_sq.sum(actual.dim() - 1)

@@ -1,4 +1,3 @@
-import unittest
 import torch
 from torch.autograd import Variable
 from common import TestCase
@@ -19,9 +18,9 @@ SIMPLE_TARGET = torch.Tensor([[[0.5, 0.5]]])
 
 # Expected dloss/dinput when using MSE with target (0.5, 0.5)
 SIMPLE_GRAD_INPUT = torch.Tensor([[[
-    [ 0.4800, 0.4400, 0.4000, 0.3600, 0.3200],
-    [ 0.2800, 0.2400, 0.2000, 0.1600, 0.1200],
-    [ 0.0800, 0.0400, 0.0000, -0.0400, -0.0800],
+    [0.4800, 0.4400, 0.4000, 0.3600, 0.3200],
+    [0.2800, 0.2400, 0.2000, 0.1600, 0.1200],
+    [0.0800, 0.0400, 0.0000, -0.0400, -0.0800],
     [-0.1200, -0.1600, -0.2000, -0.2400, -0.2800],
     [-0.3200, -0.3600, -0.4000, -0.4400, -0.4800],
 ]]])

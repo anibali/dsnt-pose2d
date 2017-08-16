@@ -1,10 +1,11 @@
-# This file contains code taken from:
-# https://github.com/pytorch/pytorch/blob/368ecb47f97c6dc2d57c487bda451df71148e488/test/common.py
-# As such, the code in this file is licensed the same as PyTorch:
-# https://github.com/pytorch/pytorch/blob/368ecb47f97c6dc2d57c487bda451df71148e488/LICENSE
+'''
+The code in this file originates from another source.
 
-import sys
-import os
+Source: https://github.com/pytorch/pytorch/blob/master/test/common.py
+License: 3-Clause BSD
+Changes: Yes
+'''
+
 import unittest
 import contextlib
 from itertools import product
@@ -16,19 +17,15 @@ from torch.autograd import Variable
 
 torch.set_default_tensor_type('torch.DoubleTensor')
 
-
 SEED = 0
-
 
 def get_cpu_type(t):
     assert t.__module__ == 'torch.cuda'
     return getattr(torch, t.__class__.__name__)
 
-
 def get_gpu_type(t):
     assert t.__module__ == 'torch'
     return getattr(torch.cuda, t.__name__)
-
 
 def to_gpu(obj, type_map={}):
     if torch.is_tensor(obj):
@@ -47,7 +44,6 @@ def to_gpu(obj, type_map={}):
     else:
         return deepcopy(obj)
 
-
 @contextlib.contextmanager
 def freeze_rng_state():
     rng_state = torch.get_rng_state()
@@ -58,7 +54,6 @@ def freeze_rng_state():
         torch.cuda.set_rng_state(cuda_rng_state)
     torch.set_rng_state(rng_state)
 
-
 def iter_indices(tensor):
     if tensor.dim() == 0:
         return range(0)
@@ -66,14 +61,12 @@ def iter_indices(tensor):
         return range(tensor.size(0))
     return product(*(range(s) for s in tensor.size()))
 
-
 def is_iterable(obj):
     try:
         iter(obj)
         return True
     except:
         return False
-
 
 class TestCase(unittest.TestCase):
     precision = 1e-5

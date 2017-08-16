@@ -21,6 +21,7 @@ def make_dot(var, params):
         params: dict of (name, Variable) to add names to node that
             require grad (TODO: make optional)
     '''
+
     param_map = {id(v): k for k, v in params.items()}
 
     node_attr = dict(style='filled',
@@ -57,5 +58,6 @@ def make_dot(var, params):
                 for t in var.saved_tensors:
                     dot.edge(str(id(t)), str(id(var)))
                     add_nodes(t)
+
     add_nodes(var.grad_fn)
     return dot
