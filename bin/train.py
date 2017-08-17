@@ -213,8 +213,12 @@ def main():
     if args.showoff:
         import pyshowoff
 
+        with open('/etc/hostname', 'r') as f:
+            hostname = f.read().strip()
+
         client = pyshowoff.Client(args.showoff)
-        notebook = client.new_notebook('Human pose ({}, trunc={})'.format(base_model, truncate))
+        notebook = client.new_notebook('[{}] Human pose ({}, trunc={})'.format(
+            hostname, base_model, truncate))
 
         reporting.setup_showoff_output(notebook)
 
