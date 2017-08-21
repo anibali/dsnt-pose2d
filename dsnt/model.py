@@ -10,7 +10,7 @@ from torchvision import models
 from dsnt.nn import DSNT, euclidean_loss
 
 class HumanPoseModel(nn.Module):
-    '''Abstract base class for human pose estimation'''
+    '''Abstract base class for human pose estimation models.'''
 
     def forward_loss(self, out_var, target_var, mask_var):
         '''Calculates the value of the loss function.'''
@@ -21,17 +21,15 @@ class HumanPoseModel(nn.Module):
         raise NotImplementedError()
 
 class ResNetHumanPoseModel(HumanPoseModel):
-    '''ResNet-based model for human pose estimation.'''
+    '''Create a ResNet-based model for human pose estimation.
+
+    Args:
+        resnet (nn.Module): ResNet model which will form the base of the model
+        n_chans (int): Number of output locations
+        truncate (int): Number of ResNet layer groups to chop off
+    '''
 
     def __init__(self, resnet, n_chans=16, truncate=0):
-        '''Create a ResNet-based model for human pose estimation.
-
-        Args:
-            resnet (nn.Module): ResNet model which will form the base of the model
-            n_chans (int): Number of output locations
-            truncate (int): Number of ResNet layer groups to chop off
-        '''
-
         super().__init__()
 
         self.n_chans = n_chans
@@ -54,12 +52,12 @@ class ResNetHumanPoseModel(HumanPoseModel):
         self.out_size = 7 * (2 ** truncate)
 
     def forward_loss(self, out_var, target_var, mask_var):
-        '''Calculates the value of the loss function.'''
+        '''Calculate the value of the loss function.'''
         loss = euclidean_loss(out_var, target_var, mask_var)
         return loss
 
     def compute_coords(self, out_var):
-        '''Calculates joint coordinates from the network output.'''
+        '''Calculate joint coordinates from the network output.'''
         return out_var.data.type(torch.FloatTensor)
 
     def forward(self, *inputs):

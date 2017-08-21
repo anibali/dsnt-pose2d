@@ -59,7 +59,9 @@ class DSNT(nn.Module):
         self.fixed_weights = Variable(w, requires_grad=False)
         return self.fixed_weights
 
-    def forward(self, x):
+    def forward(self, *inputs):
+        x = inputs[0]
+
         if x.dim() == 3:
             batch_mode = False
             batch_size = 1

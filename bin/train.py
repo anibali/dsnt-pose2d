@@ -9,8 +9,6 @@ using [DLDS](https://github.com/anibali/dlds).
 '''
 
 import os
-import sys
-import inspect
 import argparse
 import datetime
 import random
@@ -25,9 +23,6 @@ import torchnet.meter
 import tele
 import tele.meter
 import numpy as np
-
-cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0, os.path.dirname(cur_dir))
 
 from dsnt.data import MPIIDataset
 from dsnt.eval import PCKhEvaluator
@@ -275,7 +270,9 @@ def main():
                 vis['train_coords'] = batch['part_coords']
 
             if progress_frame is not None:
-                progress_frame.progress(epoch * len(train_data) + samples_processed, epochs * len(train_data))
+                progress_frame.progress(
+                    epoch * len(train_data) + samples_processed,
+                    epochs * len(train_data))
 
     def validate(epoch):
         '''Do a full pass over the validation set, evaluating model performance.'''
