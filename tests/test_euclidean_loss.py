@@ -2,12 +2,10 @@ import torch
 from torch.autograd import Variable
 from common import TestCase
 
-from dsnt.nn import EuclideanLoss
+from dsnt.nn import euclidean_loss
 
 class TestEuclideanLoss(TestCase):
     def test_forward_and_backward(self):
-        criterion = EuclideanLoss()
-
         input_tensor = torch.Tensor([
             [[3, 4], [3, 4]],
             [[3, 4], [3, 4]],
@@ -21,7 +19,7 @@ class TestEuclideanLoss(TestCase):
         in_var = Variable(input_tensor, requires_grad=True)
 
         expected_loss = torch.Tensor([5])
-        actual_loss = criterion.forward(in_var, Variable(target))
+        actual_loss = euclidean_loss(in_var, Variable(target))
         expected_grad = torch.Tensor([
             [[0.15, 0.20], [0.15, 0.20]],
             [[0.15, 0.20], [0.15, 0.20]],
@@ -33,8 +31,6 @@ class TestEuclideanLoss(TestCase):
         self.assertEqual(expected_grad, actual_grad)
 
     def test_mask(self):
-        criterion = EuclideanLoss()
-
         output = torch.Tensor([
             [[0, 0], [1, 1], [0, 0]],
             [[1, 1], [0, 0], [0, 0]],
@@ -51,6 +47,6 @@ class TestEuclideanLoss(TestCase):
         ])
 
         expected = torch.Tensor([0])
-        actual = criterion(Variable(output), Variable(target), Variable(mask))
+        actual = euclidean_loss(Variable(output), Variable(target), Variable(mask))
 
         self.assertEqual(expected, actual.data)

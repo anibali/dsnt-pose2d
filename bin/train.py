@@ -29,7 +29,6 @@ import numpy as np
 cur_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, os.path.dirname(cur_dir))
 
-from dsnt.nn import EuclideanLoss
 from dsnt.data import MPIIDataset
 from dsnt.eval import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
@@ -156,7 +155,7 @@ def main():
     exp_out_dir = os.path.join(out_dir, experiment_id) if out_dir else None
 
     ####
-    # Model and criterion
+    # Model
     ####
 
     model_desc = {
@@ -165,9 +164,6 @@ def main():
     }
     model = build_mpii_pose_model(**model_desc)
     model.cuda()
-
-    criterion = EuclideanLoss()
-    criterion.cuda()
 
     ####
     # Data
@@ -263,9 +259,10 @@ def main():
             optimizer.zero_grad()
 
             out_var = model(in_var)
-            loss = criterion(out_var, target_var, mask_var)
+            loss = model.forward_loss(out_var, target_var, mask_var)
             tel['train_loss'].add(loss.data[0])
-            eval_metrics_for_batch(train_eval, batch, out_var.data)
+            coords = model.compute_coords(out_var)
+            eval_metrics_for_batch(train_eval, batch, coords)
 
             loss.backward()
             optimizer.step()
@@ -273,7 +270,7 @@ def main():
 
             if i == 0:
                 vis['train_images'] = batch['input']
-                vis['train_preds'] = out_var.data.cpu()
+                vis['train_preds'] = coords
                 vis['train_masks'] = batch['part_mask']
                 vis['train_coords'] = batch['part_coords']
 
@@ -287,25 +284,28 @@ def main():
         val_preds = torch.DoubleTensor(len(val_data), 16, 2)
 
         for i, batch in enumerate(val_loader):
-            in_var = Variable(batch['input'].cuda(), requires_grad=False)
-            target_var = Variable(batch['part_coords'].cuda(), requires_grad=False)
-            mask_var = Variable(batch['part_mask'].type(torch.cuda.FloatTensor), requires_grad=False)
+            in_var = Variable(batch['input'].cuda(), volatile=True)
+            target_var = Variable(batch['part_coords'].cuda(), volatile=True)
+            mask_var = Variable(batch['part_mask'].type(torch.cuda.FloatTensor), volatile=True)
 
             out_var = model(in_var)
-            loss = criterion(out_var, target_var, mask_var)
+            loss = model.forward_loss(out_var, target_var, mask_var)
             tel['val_loss'].add(loss.data[0])
-            eval_metrics_for_batch(val_eval, batch, out_var.data)
+            coords = model.compute_coords(out_var)
+            eval_metrics_for_batch(val_eval, batch, coords)
 
-            preds = torch.DoubleTensor(out_var.data.size())
-            preds.copy_(out_var.data)
+            preds = coords.double()
             pos = i * batch_size
-            orig_preds = val_preds[pos:pos+preds.size(0)]
-            torch.bmm(preds, batch['transform_m'], out=orig_preds)
-            orig_preds.add_(batch['transform_b'].expand_as(preds))
+            orig_preds = val_preds[pos:(pos + preds.size(0))]
+            torch.baddbmm(
+                batch['transform_b'],
+                preds,
+                batch['transform_m'],
+                out=orig_preds)
 
             if i == 0:
                 vis['val_images'] = batch['input']
-                vis['val_preds'] = preds
+                vis['val_preds'] = coords
                 vis['val_masks'] = batch['part_mask']
                 vis['val_coords'] = batch['part_coords']
 
@@ -321,7 +321,7 @@ def main():
         train_sample = []
         for i in range(min(16, vis['train_images'].size(0))):
             img = transforms.ToPILImage()(vis['train_images'][i])
-            coords = (vis['train_preds'][i].cpu() + 1) * (224 / 2)
+            coords = (vis['train_preds'][i] + 1) * (224 / 2)
             draw_skeleton(img, coords, vis['train_masks'][i])
             train_sample.append(img)
         tel['train_sample'].set_value(train_sample)
@@ -329,7 +329,7 @@ def main():
         val_sample = []
         for i in range(min(16, vis['val_images'].size(0))):
             img = transforms.ToPILImage()(vis['val_images'][i])
-            coords = (vis['val_preds'][i].cpu() + 1) * (224 / 2)
+            coords = (vis['val_preds'][i] + 1) * (224 / 2)
             draw_skeleton(img, coords, vis['val_masks'][i])
             val_sample.append(img)
         tel['val_sample'].set_value(val_sample)

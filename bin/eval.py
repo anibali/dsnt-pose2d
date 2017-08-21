@@ -114,12 +114,16 @@ def main():
 
             out_var = model(in_var)
 
-            norm_preds = torch.DoubleTensor(out_var.data.size())
-            norm_preds.copy_(out_var.data)
+            coords = model.compute_coords(out_var)
+
+            norm_preds = coords.double()
             pos = i * batch_size
-            orig_preds = preds[pos:pos+norm_preds.size(0)]
-            torch.bmm(norm_preds, batch['transform_m'], out=orig_preds)
-            orig_preds.add_(batch['transform_b'].expand_as(orig_preds))
+            orig_preds = preds[pos:(pos + norm_preds.size(0))]
+            torch.baddbmm(
+                batch['transform_b'],
+                norm_preds,
+                batch['transform_m'],
+                out=orig_preds)
 
             completed += in_var.data.size(0)
             progress(completed, len(dataset))

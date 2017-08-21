@@ -83,42 +83,39 @@ class DSNT(nn.Module):
 
         return output.view(output_size)
 
-class EuclideanLoss(nn.Module):
-    '''Computes the average Euclidean distance for multiple points.'''
+def euclidean_loss(actual, target, mask=None):
+    '''Calculate the average Euclidean loss for multi-point samples.
 
-    def forward(self, actual, target, mask=None):
-        '''Calculate the average Euclidean loss for multi-point samples.
+    Each sample must contain `n` points, each with `d` dimensions. For example,
+    in the MPII human pose estimation task n=16 (16 joint locations) and
+    d=2 (locations are 2D).
 
-        Each sample must contain `n` points, each with `d` dimensions. For example,
-        in the MPII human pose estimation task n=16 (16 joint locations) and
-        d=2 (locations are 2D).
+    Args:
+        actual (Tensor): Predictions ([batches x] n x d)
+        target (Tensor): Ground truth target ([batches x] n x d)
+        mask (Tensor, optional): Mask of points to include in the loss calculation
+            ([batches x] n), defaults to including everything
+    '''
+    if actual.dim() == 2:
+        batch_size = 1
+    elif actual.dim() == 3:
+        batch_size = actual.size(0)
+    else:
+        raise 'euclidean_loss expects 2D or 3D input'
 
-        Args:
-            actual (Tensor): Predictions ([batches x] n x d)
-            target (Tensor): Ground truth target ([batches x] n x d)
-            mask (Tensor, optional): Mask of points to include in the loss calculation
-                ([batches x] n), defaults to including everything
-        '''
-        if actual.dim() == 2:
-            batch_size = 1
-        elif actual.dim() == 3:
-            batch_size = actual.size(0)
-        else:
-            raise 'EuclideanLoss expects 2D or 3D input'
+    n_chans = actual.size(-2)
 
-        n_chans = actual.size(-2)
+    # Calculate Euclidean distances between actual and target locations
+    diff = actual - target
+    diff_sq = diff * diff
+    dist_sq = diff_sq.sum(actual.dim() - 1)
+    dist = dist_sq.sqrt()
 
-        # Calculate Euclidean distances between actual and target locations
-        diff = actual - target
-        diff_sq = diff * diff
-        dist_sq = diff_sq.sum(actual.dim() - 1)
-        dist = dist_sq.sqrt()
+    # Apply mask to distances
+    if mask is not None:
+        dist = dist * mask
 
-        # Apply mask to distances
-        if mask is not None:
-            dist = dist * mask
+    # Divide loss to make it independent of batch size
+    loss = dist.sum() / (batch_size * n_chans)
 
-        # Divide loss to make it independent of batch size
-        loss = dist.sum() / (batch_size * n_chans)
-
-        return loss
+    return loss
