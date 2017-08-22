@@ -24,6 +24,7 @@ class MPIIDataset(Dataset):
         data_dir: path to the directory containing `mpii-human-pose.h5`
         subset: subset of the data to load ("train", "val", or "test")
         use_aug: set to `True` to enable random data augmentation
+        size: resolution of the input images
     '''
 
     # This tensor describes how to rearrange joint indices in the case of a
@@ -32,13 +33,14 @@ class MPIIDataset(Dataset):
         5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 15, 14, 13, 12, 11, 10
     ])
 
-    def __init__(self, data_dir, subset='train', use_aug=False):
+    def __init__(self, data_dir, subset='train', use_aug=False, size=224):
         super().__init__()
 
         h5_file = path.join(data_dir, 'mpii-human-pose.h5')
         self.h5_file = h5_file
         self.subset = subset
         self.use_aug = use_aug
+        self.size = size
         with h5py_cache.File(h5_file, 'r', chunk_cache_mem_size=1024**3) as f:
             self.length = f[subset]['images'].shape[0]
 
@@ -136,7 +138,7 @@ class MPIIDataset(Dataset):
             transforms.Lambda(lambda img: img.transpose(Image.FLIP_LEFT_RIGHT) if hflip else img),
             transforms.Lambda(lambda img: img.rotate(rot, Image.BILINEAR) if rot != 0 else img),
             transforms.CenterCrop(384 * scale),
-            transforms.Scale(224, Image.BILINEAR),
+            transforms.Scale(self.size, Image.BILINEAR),
             transforms.ToTensor(),
         ])
         input_image = trans(raw_image)

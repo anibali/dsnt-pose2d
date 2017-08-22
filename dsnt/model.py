@@ -4,20 +4,22 @@ Code for building neural network models.
 
 import torch
 from torch import nn
+from torch.autograd import Variable
 from torch.utils import model_zoo
 from torchvision import models
 
 from dsnt.nn import DSNT, euclidean_loss
+from dsnt import util, hourglass
 
 class HumanPoseModel(nn.Module):
     '''Abstract base class for human pose estimation models.'''
 
     def forward_loss(self, out_var, target_var, mask_var):
-        '''Calculates the value of the loss function.'''
+        '''Calculate the value of the loss function.'''
         raise NotImplementedError()
 
     def compute_coords(self, out_var):
-        '''Calculates joint coordinates from the network output.'''
+        '''Calculate joint coordinates from the network output.'''
         raise NotImplementedError()
 
 class ResNetHumanPoseModel(HumanPoseModel):
@@ -51,13 +53,13 @@ class ResNetHumanPoseModel(HumanPoseModel):
         self.hm_dsnt = DSNT()
         self.out_size = 7 * (2 ** truncate)
 
+        self.input_size = 224
+
     def forward_loss(self, out_var, target_var, mask_var):
-        '''Calculate the value of the loss function.'''
         loss = euclidean_loss(out_var, target_var, mask_var)
         return loss
 
     def compute_coords(self, out_var):
-        '''Calculate joint coordinates from the network output.'''
         return out_var.data.type(torch.FloatTensor)
 
     def forward(self, *inputs):
@@ -70,6 +72,36 @@ class ResNetHumanPoseModel(HumanPoseModel):
         x = self.hm_dsnt(x)
         return x
 
+class HourglassHumanPoseModel(HumanPoseModel):
+    def __init__(self, hg, n_chans=16):
+        super().__init__()
+
+        self.hg = hg
+        self.n_chans = n_chans
+
+        self.input_size = 256
+
+    def forward_loss(self, out_var, target_var, mask_var):
+        norm_coords = target_var.data.cpu()
+        width = out_var[0].size(-1)
+        height = out_var[0].size(-2)
+
+        target_hm = util.encode_heatmaps(norm_coords, width, height)
+        target_hm_var = Variable(target_hm.cuda())
+
+        # Calculate and sum up intermediate losses
+        loss = sum([nn.functional.mse_loss(hm, target_hm_var) for hm in out_var])
+
+        return loss
+
+    def compute_coords(self, out_var):
+        return util.decode_heatmaps(out_var[-1].data.cpu())
+
+    def forward(self, *inputs):
+        x = inputs[0]
+        x = self.hg(x)
+        return x
+
 def build_mpii_pose_model(base='resnet34', truncate=0):
     '''Create a ResNet-based pose estimation model with pretrained parameters.
 
@@ -78,29 +110,45 @@ def build_mpii_pose_model(base='resnet34', truncate=0):
             truncate (int): Number of ResNet layer groups to chop off
     '''
 
-    if base == 'resnet18':
-        resnet = models.resnet18()
-        model_url = models.resnet.model_urls['resnet18']
-    elif base == 'resnet34':
-        resnet = models.resnet34()
-        model_url = models.resnet.model_urls['resnet34']
-    elif base == 'resnet50':
-        resnet = models.resnet50()
-        model_url = models.resnet.model_urls['resnet50']
-    elif base == 'resnet101':
-        resnet = models.resnet101()
-        model_url = models.resnet.model_urls['resnet101']
-    elif base == 'resnet152':
-        resnet = models.resnet152()
-        model_url = models.resnet.model_urls['resnet152']
+    if base.startswith('resnet'):
+        if base == 'resnet18':
+            resnet = models.resnet18()
+            model_url = models.resnet.model_urls['resnet18']
+        elif base == 'resnet34':
+            resnet = models.resnet34()
+            model_url = models.resnet.model_urls['resnet34']
+        elif base == 'resnet50':
+            resnet = models.resnet50()
+            model_url = models.resnet.model_urls['resnet50']
+        elif base == 'resnet101':
+            resnet = models.resnet101()
+            model_url = models.resnet.model_urls['resnet101']
+        elif base == 'resnet152':
+            resnet = models.resnet152()
+            model_url = models.resnet.model_urls['resnet152']
+        else:
+            raise Exception('unsupported base model type: ' + base)
+
+        # Download pretrained weights (cache in the "models/" directory)
+        pretrained_weights = model_zoo.load_url(model_url, './models')
+        # Load pretrained weights into the ResNet model
+        resnet.load_state_dict(pretrained_weights)
+
+        model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=truncate)
+    elif base.startswith('hg'):
+        if base == 'hg1':
+            hg = hourglass.hg1()
+        elif base == 'hg2':
+            hg = hourglass.hg2()
+        elif base == 'hg4':
+            hg = hourglass.hg4()
+        elif base == 'hg8':
+            hg = hourglass.hg8()
+        else:
+            raise Exception('unsupported base model type: ' + base)
+
+        model = HourglassHumanPoseModel(hg, n_chans=16)
     else:
         raise Exception('unsupported base model type: ' + base)
-
-    # Download pretrained weights (cache in the "models/" directory)
-    pretrained_weights = model_zoo.load_url(model_url, './models')
-    # Load pretrained weights into the ResNet model
-    resnet.load_state_dict(pretrained_weights)
-
-    model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=truncate)
 
     return model

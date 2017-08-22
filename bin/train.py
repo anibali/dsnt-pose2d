@@ -164,8 +164,10 @@ def main():
     # Data
     ####
 
-    train_data = MPIIDataset('/data/dlds/mpii-human-pose', 'train', use_aug=use_train_aug)
-    val_data = MPIIDataset('/data/dlds/mpii-human-pose', 'val', use_aug=False)
+    train_data = MPIIDataset('/data/dlds/mpii-human-pose', 'train',
+        use_aug=use_train_aug, size=model.input_size)
+    val_data = MPIIDataset('/data/dlds/mpii-human-pose', 'val',
+        use_aug=False, size=model.input_size)
     train_loader = DataLoader(train_data, batch_size, num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_data, batch_size, num_workers=4, pin_memory=True)
 
@@ -223,8 +225,10 @@ def main():
     tel['args'].set_value(vars(args))
 
     # Generate a Graphviz graph to visualise the model
-    dummy_data = torch.cuda.FloatTensor(1, 3, 224, 224).uniform_(0, 1)
+    dummy_data = torch.cuda.FloatTensor(1, 3, model.input_size, model.input_size).uniform_(0, 1)
     out_var = model(Variable(dummy_data, requires_grad=False))
+    if isinstance(out_var, list):
+        out_var = out_var[-1]
     tel['model_graph'].set_value(make_dot(out_var, dict(model.named_parameters())))
     dummy_data = None
 
@@ -318,7 +322,7 @@ def main():
         train_sample = []
         for i in range(min(16, vis['train_images'].size(0))):
             img = transforms.ToPILImage()(vis['train_images'][i])
-            coords = (vis['train_preds'][i] + 1) * (224 / 2)
+            coords = (vis['train_preds'][i] + 1) * (model.input_size / 2)
             draw_skeleton(img, coords, vis['train_masks'][i])
             train_sample.append(img)
         tel['train_sample'].set_value(train_sample)
@@ -326,7 +330,7 @@ def main():
         val_sample = []
         for i in range(min(16, vis['val_images'].size(0))):
             img = transforms.ToPILImage()(vis['val_images'][i])
-            coords = (vis['val_preds'][i] + 1) * (224 / 2)
+            coords = (vis['val_preds'][i] + 1) * (model.input_size / 2)
             draw_skeleton(img, coords, vis['val_masks'][i])
             val_sample.append(img)
         tel['val_sample'].set_value(val_sample)
