@@ -28,7 +28,7 @@ from dsnt.data import MPIIDataset
 from dsnt.eval import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
 from dsnt.visualize import make_dot
-from dsnt.util import draw_skeleton
+from dsnt.util import draw_skeleton, timer, generator_timer
 
 def parse_args():
     'Parse command-line arguments.'
@@ -82,6 +82,13 @@ class Reporting():
             'train_loss': torchnet.meter.AverageValueMeter(),
             'val_loss': torchnet.meter.AverageValueMeter(),
             'epoch_time': torchnet.meter.TimeMeter(unit=False),
+            'train_data_load_time': torchnet.meter.AverageValueMeter(),
+            'train_data_transfer_time': torchnet.meter.AverageValueMeter(),
+            'train_forward_time': torchnet.meter.AverageValueMeter(),
+            'train_criterion_time': torchnet.meter.AverageValueMeter(),
+            'train_backward_time': torchnet.meter.AverageValueMeter(),
+            'train_optim_time': torchnet.meter.AverageValueMeter(),
+            'train_eval_time': torchnet.meter.AverageValueMeter(),
             'val_sample': tele.meter.ValueMeter(),
             'train_sample': tele.meter.ValueMeter(),
             'args': tele.meter.ValueMeter(skip_reset=True),
@@ -128,6 +135,10 @@ class Reporting():
             views.Images(['train_sample'], 'Training samples', images_per_row=2),
             views.Images(['val_sample'], 'Validation samples', images_per_row=2),
             views.Graphviz(['model_graph'], 'Model graph'),
+            views.LineGraph(['train_data_load_time', 'train_data_transfer_time',
+                'train_forward_time', 'train_criterion_time',
+                'train_backward_time', 'train_optim_time', 'train_eval_time'],
+                'Training time breakdown')
         ])
 
 def main():
@@ -250,21 +261,30 @@ def main():
         scheduler.step(epoch)
         samples_processed = 0
 
-        for i, batch in enumerate(train_loader):
-            in_var = Variable(batch['input'].cuda(), requires_grad=False)
-            target_var = Variable(batch['part_coords'].cuda(), requires_grad=False)
-            mask_var = Variable(batch['part_mask'].type(torch.cuda.FloatTensor), requires_grad=False)
+        for i, batch in generator_timer(enumerate(train_loader), tel['train_data_load_time']):
+            with timer(tel['train_data_transfer_time']):
+                in_var = Variable(batch['input'].cuda(), requires_grad=False)
+                target_var = Variable(batch['part_coords'].cuda(), requires_grad=False)
+                mask_var = Variable(batch['part_mask'].type(torch.cuda.FloatTensor), requires_grad=False)
 
-            optimizer.zero_grad()
+            with timer(tel['train_forward_time']):
+                out_var = model(in_var)
 
-            out_var = model(in_var)
-            loss = model.forward_loss(out_var, target_var, mask_var)
-            tel['train_loss'].add(loss.data[0])
-            coords = model.compute_coords(out_var)
-            eval_metrics_for_batch(train_eval, batch, coords)
+            with timer(tel['train_criterion_time']):
+                loss = model.forward_loss(out_var, target_var, mask_var)
+                tel['train_loss'].add(loss.data[0])
 
-            loss.backward()
-            optimizer.step()
+            with timer(tel['train_eval_time']):
+                coords = model.compute_coords(out_var)
+                eval_metrics_for_batch(train_eval, batch, coords)
+
+            with timer(tel['train_backward_time']):
+                optimizer.zero_grad()
+                loss.backward()
+
+            with timer(tel['train_optim_time']):
+                optimizer.step()
+
             samples_processed += batch['input'].size(0)
 
             if i == 0:

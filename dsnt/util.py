@@ -3,6 +3,8 @@ Miscellaneous utility functions.
 '''
 
 import math
+import time
+from contextlib import contextmanager
 
 import torch
 from PIL.ImageDraw import Draw
@@ -161,3 +163,16 @@ def decode_heatmaps(heatmaps):
     torch.mul(coords, pred_mask, out=coords)
 
     return coords
+
+@contextmanager
+def timer(meter):
+    start_time = time.perf_counter()
+    yield
+    time_elapsed = time.perf_counter() - start_time
+    meter.add(time_elapsed)
+
+def generator_timer(generator, meter):
+    while True:
+        with timer(meter):
+            vals = next(generator)
+        yield vals
