@@ -79,6 +79,8 @@ def main():
         actual = torch.from_numpy(f['part'][:])
         head_lengths = torch.from_numpy(f['normalize'][:])
         imgnames = [name.decode('utf-8') for name in f['imgname'][:]]
+        centers = torch.from_numpy(f['center'][:])
+        scales = torch.from_numpy(f['scale'][:])
     joint_mask = actual.select(2, 0).gt(1).mul(actual.select(2, 1).gt(1))
 
     if model_file:
@@ -140,66 +142,193 @@ def main():
     evaluator = PCKhEvaluator()
     evaluator.add(preds, actual, joint_mask, head_lengths)
 
+    n_joints = preds.size(1)
+    scores = []
+
     # Print PCKh accuracies
     for meter_name in sorted(evaluator.meters.keys()):
         meter = evaluator.meters[meter_name]
         mean, _ = meter.value()
         print(meter_name, mean)
 
+    # Compute interesting orderings
+    for b in range(preds.size(0)):
+        dists = []
+        for j in range(n_joints):
+            if joint_mask[b, j] == 1:
+                dist = torch.dist(actual[b, j], preds[b, j]) / head_lengths[b]
+                dists.append(dist)
+        scores.append(sum(dists) / len(dists))
+    accuracy_ordering = list(np.argsort(np.array(scores))[::-1])
+    identity_ordering = list(range(preds.size(0)))
+
     # Visualise predictions
     if visualize:
         import tkinter as tk
+        import tkinter.font
+        import tkinter.filedialog
         from PIL import ImageTk, Image, ImageDraw
         from dsnt.util import draw_skeleton
 
         # Directory containing the original MPII human pose image JPEGs
         images_dir = '/data/dlds/cache/mpii-human-pose/images'
 
+        class PoseResultsFrame(tk.Frame):
+            SKELETON_NONE = 'None'
+            SKELETON_TRUTH = 'Ground truth'
+            SKELETON_PREDICTION = 'Prediction'
+
+            def __init__(self):
+                super().__init__()
+
+                self.ordering = accuracy_ordering
+
+                self.init_gui()
+                self.savable_image = None
+
+            @property
+            def cur_sample(self):
+                return int(self.var_cur_sample.get())
+
+            @cur_sample.setter
+            def cur_sample(self, value):
+                self.var_cur_sample.set(str(value))
+
+            @property
+            def crop_as_input(self):
+                return self.var_crop_as_input.get() == 1
+
+            @crop_as_input.setter
+            def crop_as_input(self, value):
+                self.var_crop_as_input.set(1 if value else 0)
+
+            def update_image(self):
+                index = self.ordering[self.cur_sample]
+                self.var_index.set('Index: {:04d}'.format(index))
+                img = Image.open(os.path.join(images_dir, imgnames[index]))
+
+                if self.var_skeleton.get() == self.SKELETON_TRUTH:
+                    draw_skeleton(img, actual[index], joint_mask[index])
+                elif self.var_skeleton.get() == self.SKELETON_PREDICTION:
+                    draw_skeleton(img, preds[index], joint_mask[index])
+
+                # Calculate crop used for input
+                scale = scales[index]
+                center = centers[index].clone()
+                center[1] += 15 * scale
+                scale *= 1.25
+                size = scale * 200
+
+                if self.crop_as_input:
+                    img = img.crop([center[0] - size/2, center[1] - size/2,
+                        center[0] + size/2, center[1] + size/2])
+
+                self.savable_image = img.copy()
+
+                width = self.image_panel.winfo_width()
+                height = self.image_panel.winfo_height() - 2
+                img.thumbnail((width, height), Image.ANTIALIAS)
+                tkimg = ImageTk.PhotoImage(img)
+                self.image_panel.configure(image=tkimg)
+                self.image_panel.image = tkimg
+
+            def on_key(self, event):
+                'Handle keyboard event.'
+
+                cur_sample = app.cur_sample
+
+                if event.keysym == 'Escape':
+                    root.destroy()
+                    return
+                if event.keysym == 'Right' or event.keysym == 'Up':
+                    cur_sample += 1
+                if event.keysym == 'Left' or event.keysym == 'Down':
+                    cur_sample -= 1
+
+                app.cur_sample = cur_sample % len(imgnames)
+
+                app.update_image()
+
+            def on_key_cur_sample(self, event):
+                if event.keysym == 'Return':
+                    self.update_image()
+                    self.image_panel.focus_set()
+                if event.keysym == 'Escape':
+                    self.image_panel.focus_set()
+
+            def on_press_save_image(self):
+                if self.savable_image is None:
+                    return
+
+                index = self.ordering[self.cur_sample]
+
+                filename = tk.filedialog.asksaveasfilename(
+                    defaultextension='.png',
+                    initialfile='image_{:04d}.png'.format(index))
+
+                if filename:
+                    self.savable_image.save(filename)
+
+            def init_gui(self):
+                self.master.title('Pose estimation results explorer')
+
+                toolbar = tk.Frame(self.master)
+
+                self.var_index = tk.StringVar()
+                lbl_index = tk.Label(toolbar, width=12, textvariable=self.var_index)
+                lbl_index.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+
+                self.var_cur_sample = tk.StringVar()
+                self.var_cur_sample.set('0')
+                txt_cur_sample = tk.Spinbox(toolbar,
+                    textvariable=self.var_cur_sample,
+                    command=self.update_image,
+                    wrap=True,
+                    from_=0,
+                    to=len(imgnames) - 1,
+                    font=tk.font.Font(size=12))
+                txt_cur_sample.bind('<Key>', self.on_key_cur_sample)
+                txt_cur_sample.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+                self.txt_cur_sample = txt_cur_sample
+
+                lbl_skeleton = tk.Label(toolbar, text='Skeleton:')
+                lbl_skeleton.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+                self.var_skeleton = tk.StringVar()
+                self.var_skeleton.set(self.SKELETON_PREDICTION)
+                option = tk.OptionMenu(toolbar, self.var_skeleton,
+                    self.SKELETON_NONE, self.SKELETON_TRUTH, self.SKELETON_PREDICTION,
+                    command=lambda event: self.update_image())
+                option.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+
+                self.var_crop_as_input = tk.IntVar()
+                cb_crop = tk.Checkbutton(toolbar, text='Crop',
+                    variable=self.var_crop_as_input,
+                    command=self.update_image)
+                cb_crop.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+
+                btn_save = tk.Button(toolbar, text='Save image',
+                    command=self.on_press_save_image)
+                btn_save.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+
+                toolbar.pack(side=tk.TOP, fill=tk.X)
+
+                image_panel = tk.Label(self.master)
+                image_panel.configure(background='#333333')
+                image_panel.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=tk.YES)
+                image_panel.bind('<Key>', self.on_key)
+                image_panel.focus_set()
+                image_panel.bind('<Button-1>', lambda event: event.widget.focus_set())
+                image_panel.bind('<Configure>', lambda event: self.update_image())
+                self.image_panel = image_panel
+
+                self.pack()
+
         root = tk.Tk()
-        panel = tk.Label(root)
-        panel.pack(side='bottom', fill='both', expand='yes')
+        root.geometry("1280x720+0+0")
+        app = PoseResultsFrame()
 
-        display_opts = {
-            'index': 0,
-            'ground_truth': False,
-        }
-
-        def update_display():
-            'Update GUI display from state.'
-
-            index = display_opts['index']
-            truth = display_opts['ground_truth']
-            img = Image.open(os.path.join(images_dir, imgnames[index]))
-            if truth:
-                draw_skeleton(img, actual[index], joint_mask[index])
-            else:
-                draw_skeleton(img, preds[index], joint_mask[index])
-            draw = ImageDraw.Draw(img)
-            draw.text([0, 0], 'Sample {:05d} [{} joints]'.format(
-                index, 'actual' if truth else 'predicted'))
-            tkimg = ImageTk.PhotoImage(img)
-            panel.configure(image=tkimg)
-            panel.image = tkimg
-
-        update_display()
-
-        def key(event):
-            'Handle keyboard event.'
-
-            if event.keysym == 'Escape':
-                root.destroy()
-                return
-            if event.keysym == 'Right':
-                display_opts['index'] += 1
-            if event.keysym == 'Left':
-                display_opts['index'] -= 1
-            if event.keysym == 'space':
-                display_opts['ground_truth'] = not display_opts['ground_truth']
-
-            display_opts['index'] = display_opts['index'] % len(imgnames)
-            update_display()
-
-        root.bind('<Key>', key)
+        root.update()
+        app.update_image()
 
         root.mainloop()
 
