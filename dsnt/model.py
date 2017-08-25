@@ -99,6 +99,10 @@ class HourglassHumanPoseModel(HumanPoseModel):
 
     def forward(self, *inputs):
         x = inputs[0]
+
+        # Zero-center input so pixel range is [-0.5, 0.5]
+        x = x - 0.5
+
         x = self.hg(x)
         return x
 

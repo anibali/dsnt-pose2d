@@ -71,7 +71,7 @@ def main():
     subset = args.subset
     visualize = args.visualize
 
-    batch_size = 32
+    batch_size = 6
 
     # Ground truth
     actual_file = '/data/dlds/mpii-human-pose/annot-' + subset + '.h5'
@@ -102,7 +102,8 @@ def main():
         model.cuda()
         model.eval()
 
-        dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset, use_aug=False)
+        dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset,
+            use_aug=False, size=model.input_size)
         loader = DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
         preds = torch.DoubleTensor(len(dataset), 16, 2)
 
@@ -158,7 +159,10 @@ def main():
             if joint_mask[b, j] == 1:
                 dist = torch.dist(actual[b, j], preds[b, j]) / head_lengths[b]
                 dists.append(dist)
-        scores.append(sum(dists) / len(dists))
+        if len(dists) > 0:
+            scores.append(sum(dists) / len(dists))
+        else:
+            scores.append(0)
     accuracy_ordering = list(np.argsort(np.array(scores))[::-1])
     identity_ordering = list(range(preds.size(0)))
 

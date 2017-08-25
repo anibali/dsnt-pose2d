@@ -48,14 +48,6 @@ RUN conda install -y --name pytorch-py36 -c soumith \
     magma-cuda80 \
  && conda clean -ya
 
-# Install packages for building PyTorch
-RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
-    libjpeg-dev \
-    libpng-dev \
- && sudo rm -rf /var/lib/apt/lists/*
-
 # Install PyTorch and Torchvision
 RUN conda install -y --name pytorch-py36 -c soumith \
     pytorch=0.2.0 torchvision=0.1.9 \
