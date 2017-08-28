@@ -106,7 +106,7 @@ class HourglassHumanPoseModel(HumanPoseModel):
         x = self.hg(x)
         return x
 
-def build_mpii_pose_model(base='resnet34', truncate=0):
+def _build_resnet_pose_model(base, truncate=0):
     '''Create a ResNet-based pose estimation model with pretrained parameters.
 
         Args:
@@ -114,45 +114,57 @@ def build_mpii_pose_model(base='resnet34', truncate=0):
             truncate (int): Number of ResNet layer groups to chop off
     '''
 
-    if base.startswith('resnet'):
-        if base == 'resnet18':
-            resnet = models.resnet18()
-            model_url = models.resnet.model_urls['resnet18']
-        elif base == 'resnet34':
-            resnet = models.resnet34()
-            model_url = models.resnet.model_urls['resnet34']
-        elif base == 'resnet50':
-            resnet = models.resnet50()
-            model_url = models.resnet.model_urls['resnet50']
-        elif base == 'resnet101':
-            resnet = models.resnet101()
-            model_url = models.resnet.model_urls['resnet101']
-        elif base == 'resnet152':
-            resnet = models.resnet152()
-            model_url = models.resnet.model_urls['resnet152']
-        else:
-            raise Exception('unsupported base model type: ' + base)
-
-        # Download pretrained weights (cache in the "models/" directory)
-        pretrained_weights = model_zoo.load_url(model_url, './models')
-        # Load pretrained weights into the ResNet model
-        resnet.load_state_dict(pretrained_weights)
-
-        model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=truncate)
-    elif base.startswith('hg'):
-        if base == 'hg1':
-            hg = hourglass.hg1()
-        elif base == 'hg2':
-            hg = hourglass.hg2()
-        elif base == 'hg4':
-            hg = hourglass.hg4()
-        elif base == 'hg8':
-            hg = hourglass.hg8()
-        else:
-            raise Exception('unsupported base model type: ' + base)
-
-        model = HourglassHumanPoseModel(hg, n_chans=16)
+    if base == 'resnet18':
+        resnet = models.resnet18()
+        model_url = models.resnet.model_urls['resnet18']
+    elif base == 'resnet34':
+        resnet = models.resnet34()
+        model_url = models.resnet.model_urls['resnet34']
+    elif base == 'resnet50':
+        resnet = models.resnet50()
+        model_url = models.resnet.model_urls['resnet50']
+    elif base == 'resnet101':
+        resnet = models.resnet101()
+        model_url = models.resnet.model_urls['resnet101']
+    elif base == 'resnet152':
+        resnet = models.resnet152()
+        model_url = models.resnet.model_urls['resnet152']
     else:
         raise Exception('unsupported base model type: ' + base)
 
+    # Download pretrained weights (cache in the "models/" directory)
+    pretrained_weights = model_zoo.load_url(model_url, './models')
+    # Load pretrained weights into the ResNet model
+    resnet.load_state_dict(pretrained_weights)
+
+    model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=truncate)
     return model
+
+def _build_hg_model(base, stacks=2, blocks=1):
+    if base == 'hg':
+        pass
+    elif base == 'hg1':
+        stacks = 1
+    elif base == 'hg2':
+        stacks = 2
+    elif base == 'hg4':
+        stacks = 4
+    elif base == 'hg8':
+        stacks = 8
+    else:
+        raise Exception('unsupported base model type: ' + base)
+
+    hg = hourglass.HourglassNet(hourglass.Bottleneck, num_stacks=stacks, num_blocks=blocks)
+
+    model = HourglassHumanPoseModel(hg, n_chans=16)
+    return model
+
+def build_mpii_pose_model(base='resnet34', **kwargs):
+    '''Create a pose estimation model'''
+
+    if base.startswith('resnet'):
+        return _build_resnet_pose_model(base, **kwargs)
+    elif base.startswith('hg'):
+        return _build_hg_model(base, **kwargs)
+
+    raise Exception('unsupported base model type: ' + base)
