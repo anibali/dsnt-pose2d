@@ -67,6 +67,7 @@ class ResNetHumanPoseModel(HumanPoseModel):
     def _hm_preact(self, x):
         x = x.view(-1, self.out_size * self.out_size)
         x = nn.functional.softmax(x)
+        x = x.view(-1, self.n_chans, self.out_size, self.out_size)
         return x
 
     def forward_loss(self, out_var, target_var, mask_var):
@@ -100,12 +101,16 @@ class ResNetHumanPoseModel(HumanPoseModel):
         x = self.hm_conv(x)
         if self.output_strat == 'dsnt':
             x = self._hm_preact(x)
-            x = x.view(-1, self.n_chans, self.out_size, self.out_size)
+            self.heatmaps = x
             x = self.hm_dsnt(x)
         elif self.output_strat == 'fc':
             x = self._hm_preact(x)
+            self.heatmaps = x
+            x = x.view(-1, self.out_size * self.out_size)
             x = self.out_fc(x)
             x = x.view(-1, self.n_chans, 2)
+        else:
+            self.heatmaps = x
         return x
 
 

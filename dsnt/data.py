@@ -121,16 +121,16 @@ class MPIIDataset(Dataset):
                 part_coords.scatter_(0, hflip_indices_2d, part_coords.clone())
                 part_mask.scatter_(0, MPIIDataset.HFLIP_INDICES, part_mask.clone())
 
-            # Mask out joints that have been transformed to a location outside of the
-            # image bounds.
-            #
-            # NOTE: It is still possible for joints to be transformed outside of the image bounds
-            # when augmentations are turned off. This is because the center/scale information
-            # provided in the MPII human pose dataset will occasionally not include a joint.
-            # For example, see the head top joint for ID 21 in the validation set.
-            if subset == 'train':
-                within_bounds, _ = part_coords.abs().lt(1).min(-1, keepdim=False)
-                part_mask.mul_(within_bounds)
+            # # Mask out joints that have been transformed to a location outside of the
+            # # image bounds.
+            # #
+            # # NOTE: It is still possible for joints to be transformed outside of the image bounds
+            # # when augmentations are turned off. This is because the center/scale information
+            # # provided in the MPII human pose dataset will occasionally not include a joint.
+            # # For example, see the head top joint for ID 21 in the validation set.
+            # if subset == 'train':
+            #     within_bounds, _ = part_coords.abs().lt(1).min(-1, keepdim=False)
+            #     part_mask.mul_(within_bounds)
 
         ### Transform image ###
 
