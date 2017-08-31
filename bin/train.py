@@ -17,7 +17,7 @@ import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch import optim
-from torch.optim.lr_scheduler import StepLR
+from torch.optim import lr_scheduler
 from torchvision import transforms
 import torchnet.meter
 import tele
@@ -48,12 +48,16 @@ def parse_args():
         help='base model type (default="resnet34")')
     parser.add_argument('--truncate', type=int, default=0, metavar='N',
         help='number of ResNet layer groups to cut off (default=0)')
-    parser.add_argument('--lr', type=float, default=0.2, metavar='LR',
-        help='initial learning rate for SGD (default=0.2)')
-    parser.add_argument('--schedule-step', type=int, default=50, metavar='N',
-        help='number of epochs per LR drop (default=50)')
-    parser.add_argument('--schedule-gamma', type=float, default=0.5, metavar='G',
-        help='factor to multiply the LR by at each drop (default=0.5)')
+    parser.add_argument('--output-strat', type=str, default='dsnt', metavar='S',
+        help='strategy for outputting coordinates (default="dsnt")')
+    parser.add_argument('--lr', type=float, metavar='LR',
+        help='initial learning rate')
+    parser.add_argument('--schedule-step', type=int, metavar='N',
+        help='number of epochs per LR drop')
+    parser.add_argument('--schedule-gamma', type=float, metavar='G',
+        help='factor to multiply the LR by at each drop')
+    parser.add_argument('--optim', type=str, default='sgd', metavar='S',
+        help='optimizer to use (default=sgd)')
     parser.add_argument('--seed', type=int, metavar='N',
         help='seed for random number generators')
 
@@ -61,6 +65,14 @@ def parse_args():
 
     if args.seed is None:
         args.seed = np.random.randint(0, 999999)
+
+    if args.optim == 'sgd':
+        args.lr = args.lr or 0.2
+        args.schedule_step = args.schedule_step or 50
+        args.schedule_gamma = args.schedule_gamma or 0.5
+    elif args.optim == 'rmsprop':
+        args.lr = args.lr or 2.5e-4
+        args.schedule_gamma = args.schedule_gamma or 0.1
 
     return args
 
@@ -167,6 +179,7 @@ def main():
     model_desc = {
         'base': base_model,
         'truncate': truncate,
+        'output_strat': args.output_strat,
     }
     model = build_mpii_pose_model(**model_desc)
     model.cuda()
@@ -194,7 +207,7 @@ def main():
 
         norm_out = norm_out.type(torch.DoubleTensor)
 
-        # Coords in orginal MPII dataset space
+        # Coords in original MPII dataset space
         orig_out = torch.bmm(norm_out, batch['transform_m']).add_(
             batch['transform_b'].expand_as(norm_out))
 
@@ -221,8 +234,8 @@ def main():
             hostname = f.read().strip()
 
         client = pyshowoff.Client(args.showoff)
-        notebook = client.new_notebook('[{}] Human pose ({}, trunc={})'.format(
-            hostname, base_model, truncate))
+        notebook = client.new_notebook('[{}] Human pose ({}, trunc={}, optim={}@{:.1e})'.format(
+            hostname, base_model, truncate, args.optim, args.lr))
 
         reporting.setup_showoff_output(notebook)
 
@@ -244,8 +257,14 @@ def main():
     dummy_data = None
 
     # Initialize optimiser and learning rate scheduler
-    optimizer = optim.SGD(model.parameters(), lr=initial_lr, momentum=0.9)
-    scheduler = StepLR(optimizer, schedule_step, schedule_gamma)
+    if args.optim == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr=initial_lr, momentum=0.9)
+        scheduler = lr_scheduler.StepLR(optimizer, schedule_step, schedule_gamma)
+    elif args.optim == 'rmsprop':
+        optimizer = optim.RMSprop(model.parameters(), lr=initial_lr)
+        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[60, 90], gamma=schedule_gamma)
+    else:
+        raise Exception('unrecognised optimizer: {}'.format(args.optim))
 
     # `vis` will hold a few samples for visualisation
     vis = {}

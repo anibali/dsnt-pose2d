@@ -1,9 +1,11 @@
-'''
+"""
 Code for building neural network models.
-'''
+"""
+import inspect
 
 import torch
 from torch import nn
+import torch.nn.functional
 from torch.autograd import Variable
 from torch.utils import model_zoo
 from torchvision import models
@@ -11,30 +13,34 @@ from torchvision import models
 from dsnt.nn import DSNT, euclidean_loss
 from dsnt import util, hourglass
 
+
 class HumanPoseModel(nn.Module):
-    '''Abstract base class for human pose estimation models.'''
+    """Abstract base class for human pose estimation models."""
 
     def forward_loss(self, out_var, target_var, mask_var):
-        '''Calculate the value of the loss function.'''
+        """Calculate the value of the loss function."""
         raise NotImplementedError()
 
     def compute_coords(self, out_var):
-        '''Calculate joint coordinates from the network output.'''
+        """Calculate joint coordinates from the network output."""
         raise NotImplementedError()
 
+
 class ResNetHumanPoseModel(HumanPoseModel):
-    '''Create a ResNet-based model for human pose estimation.
+    """Create a ResNet-based model for human pose estimation.
 
     Args:
         resnet (nn.Module): ResNet model which will form the base of the model
         n_chans (int): Number of output locations
         truncate (int): Number of ResNet layer groups to chop off
-    '''
+    """
 
-    def __init__(self, resnet, n_chans=16, truncate=0):
+    def __init__(self, resnet, n_chans=16, truncate=0, output_strat='dsnt'):
         super().__init__()
 
         self.n_chans = n_chans
+        self.output_strat = output_strat
+
         fcn_modules = [
             resnet.conv1,
             resnet.bn1,
@@ -49,28 +55,59 @@ class ResNetHumanPoseModel(HumanPoseModel):
         else:
             feats = resnet.fc.in_features
         self.hm_conv = nn.Conv2d(feats, self.n_chans, kernel_size=1, bias=False)
-        self.hm_preact = nn.Softmax()
-        self.hm_dsnt = DSNT()
-        self.out_size = 7 * (2 ** truncate)
 
+        if self.output_strat == 'dsnt':
+            self.hm_dsnt = DSNT()
+        elif self.output_strat == 'fc':
+            self.out_fc = nn.Linear(self.out_size * self.out_size, 2)
+
+        self.out_size = 7 * (2 ** truncate)
         self.input_size = 224
 
+    def _hm_preact(self, x):
+        x = x.view(-1, self.out_size * self.out_size)
+        x = nn.functional.softmax(x)
+        return x
+
     def forward_loss(self, out_var, target_var, mask_var):
-        loss = euclidean_loss(out_var, target_var, mask_var)
-        return loss
+        if self.output_strat == 'dsnt' or self.output_strat == 'fc':
+            loss = euclidean_loss(out_var, target_var, mask_var)
+            return loss
+        elif self.output_strat == 'gauss':
+            norm_coords = target_var.data.cpu()
+            width = out_var.size(-1)
+            height = out_var.size(-2)
+
+            target_hm = util.encode_heatmaps(norm_coords, width, height)
+            target_hm_var = Variable(target_hm.cuda())
+
+            loss = nn.functional.mse_loss(out_var, target_hm_var)
+            return loss
+
+        raise Exception('invalid configuration')
 
     def compute_coords(self, out_var):
-        return out_var.data.type(torch.FloatTensor)
+        if self.output_strat == 'dsnt' or self.output_strat == 'fc':
+            return out_var.data.type(torch.FloatTensor)
+        elif self.output_strat == 'gauss':
+            return util.decode_heatmaps(out_var.data.cpu())
+
+        raise Exception('invalid configuration')
 
     def forward(self, *inputs):
         x = inputs[0]
         x = self.fcn(x)
         x = self.hm_conv(x)
-        x = x.view(-1, self.out_size*self.out_size)
-        x = self.hm_preact(x)
-        x = x.view(-1, self.n_chans, self.out_size, self.out_size)
-        x = self.hm_dsnt(x)
+        if self.output_strat == 'dsnt':
+            x = self._hm_preact(x)
+            x = x.view(-1, self.n_chans, self.out_size, self.out_size)
+            x = self.hm_dsnt(x)
+        elif self.output_strat == 'fc':
+            x = self._hm_preact(x)
+            x = self.out_fc(x)
+            x = x.view(-1, self.n_chans, 2)
         return x
+
 
 class HourglassHumanPoseModel(HumanPoseModel):
     def __init__(self, hg, n_chans=16):
@@ -106,13 +143,15 @@ class HourglassHumanPoseModel(HumanPoseModel):
         x = self.hg(x)
         return x
 
-def _build_resnet_pose_model(base, truncate=0):
-    '''Create a ResNet-based pose estimation model with pretrained parameters.
+
+def _build_resnet_pose_model(base, truncate=0, output_strat='dsnt'):
+    """Create a ResNet-based pose estimation model with pretrained parameters.
 
         Args:
             base (str): Base ResNet model type (eg 'resnet34')
             truncate (int): Number of ResNet layer groups to chop off
-    '''
+            output_strat (str): Output strategy
+    """
 
     if base == 'resnet18':
         resnet = models.resnet18()
@@ -137,8 +176,9 @@ def _build_resnet_pose_model(base, truncate=0):
     # Load pretrained weights into the ResNet model
     resnet.load_state_dict(pretrained_weights)
 
-    model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=truncate)
+    model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=truncate, output_strat=output_strat)
     return model
+
 
 def _build_hg_model(base, stacks=2, blocks=1):
     if base == 'hg':
@@ -159,12 +199,21 @@ def _build_hg_model(base, stacks=2, blocks=1):
     model = HourglassHumanPoseModel(hg, n_chans=16)
     return model
 
+
 def build_mpii_pose_model(base='resnet34', **kwargs):
-    '''Create a pose estimation model'''
+    """Create a pose estimation model"""
 
     if base.startswith('resnet'):
-        return _build_resnet_pose_model(base, **kwargs)
+        build_model = _build_resnet_pose_model
     elif base.startswith('hg'):
+        build_model = _build_hg_model
         return _build_hg_model(base, **kwargs)
+    else:
+        raise Exception('unsupported base model type: ' + base)
 
-    raise Exception('unsupported base model type: ' + base)
+    # Filter out unexpected parameters
+    func_params = inspect.signature(build_model).parameters.values()
+    param_names = [p.name for p in func_params if p.default != inspect.Parameter.empty]
+    kwargs = {k: kwargs[k] for k in param_names if k in kwargs}
+
+    return build_model(base, **kwargs)

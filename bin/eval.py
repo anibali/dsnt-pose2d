@@ -20,6 +20,7 @@ import sys
 import argparse
 import random
 
+import progressbar
 import torch
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
@@ -86,15 +87,6 @@ def main():
     if model_file:
         # Generate predictions with the model
 
-        def progress(count, total):
-            'Write progress bar to stdout.'
-
-            bar_len = 60
-            filled_len = round(bar_len * count / total)
-            bar = '=' * filled_len + '-' * (bar_len - filled_len)
-            sys.stdout.write('[{}] {:0.1f}%\r'.format(bar, 100 * count / total))
-            sys.stdout.flush()
-
         model_state = torch.load(model_file)
 
         model = build_mpii_pose_model(**model_state['model_desc'])
@@ -105,27 +97,28 @@ def main():
         dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset,
             use_aug=False, size=model.input_size)
         loader = DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
-        preds = torch.DoubleTensor(len(dataset), 16, 2)
+        preds = torch.DoubleTensor(len(dataset), 16, 2).zero_()
 
         completed = 0
-        for i, batch in enumerate(loader):
-            in_var = Variable(batch['input'].cuda(), requires_grad=False)
+        with progressbar.ProgressBar(max_value=len(dataset)) as bar:
+            for i, batch in enumerate(loader):
+                in_var = Variable(batch['input'].cuda(), requires_grad=False)
 
-            out_var = model(in_var)
+                out_var = model(in_var)
 
-            coords = model.compute_coords(out_var)
+                coords = model.compute_coords(out_var)
 
-            norm_preds = coords.double()
-            pos = i * batch_size
-            orig_preds = preds[pos:(pos + norm_preds.size(0))]
-            torch.baddbmm(
-                batch['transform_b'],
-                norm_preds,
-                batch['transform_m'],
-                out=orig_preds)
+                norm_preds = coords.double()
+                pos = i * batch_size
+                orig_preds = preds[pos:(pos + norm_preds.size(0))]
+                torch.baddbmm(
+                    batch['transform_b'],
+                    norm_preds,
+                    batch['transform_m'],
+                    out=orig_preds)
 
-            completed += in_var.data.size(0)
-            progress(completed, len(dataset))
+                completed += in_var.data.size(0)
+                bar.update(completed)
 
         # Save predictions to file
         if preds_file:
@@ -137,7 +130,7 @@ def main():
             preds = torch.from_numpy(f['preds'][:])
     else:
         # We need to get predictions from somewhere!
-        raise 'at least one of "--preds" and "--model" must be present'
+        raise Exception('at least one of "--preds" and "--model" must be present')
 
     # Calculate PCKh accuracies
     evaluator = PCKhEvaluator()

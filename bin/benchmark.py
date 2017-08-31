@@ -98,6 +98,8 @@ def main():
 
     model_state = torch.load(model_file)
 
+    print(model_state['model_desc'])
+
     model = build_mpii_pose_model(**model_state['model_desc'])
     model.load_state_dict(model_state['state_dict'])
     model.cuda()

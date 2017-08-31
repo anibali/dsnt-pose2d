@@ -60,6 +60,7 @@ class MPIIDataset(Dataset):
                 part_coords = torch.from_numpy(f[subset]['parts/coords'][index])
                 norm_target = part_coords.double()
                 orig_target = torch.mm(norm_target, trans_m).add_(trans_b.expand_as(norm_target))
+                orig_target = orig_target.round()
                 part_mask = orig_target[:, 0].gt(1).mul(orig_target[:, 1].gt(1))
             else:
                 part_coords = None
@@ -121,11 +122,15 @@ class MPIIDataset(Dataset):
                 part_mask.scatter_(0, MPIIDataset.HFLIP_INDICES, part_mask.clone())
 
             # Mask out joints that have been transformed to a location outside of the
-            # image bounds
-            for i in range(part_coords.size(0)):
-                x, y = part_coords[i].tolist()
-                if x < -1 or x > 1 or y < -1 or y > 1:
-                    part_mask[i] = 0
+            # image bounds.
+            #
+            # NOTE: It is still possible for joints to be transformed outside of the image bounds
+            # when augmentations are turned off. This is because the center/scale information
+            # provided in the MPII human pose dataset will occasionally not include a joint.
+            # For example, see the head top joint for ID 21 in the validation set.
+            if subset == 'train':
+                within_bounds, _ = part_coords.abs().lt(1).min(-1, keepdim=False)
+                part_mask.mul_(within_bounds)
 
         ### Transform image ###
 
