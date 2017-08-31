@@ -1,5 +1,5 @@
 import torch
-from common import TestCase
+from tests.common import TestCase
 
 import dsnt.util
 

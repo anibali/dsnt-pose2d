@@ -1,6 +1,6 @@
 import torch
 from torch.autograd import Variable
-from common import TestCase
+from tests.common import TestCase
 
 from dsnt.nn import euclidean_loss
 

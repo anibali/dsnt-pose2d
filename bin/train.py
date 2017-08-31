@@ -46,6 +46,8 @@ def parse_args():
         help='path to output directory (default="out")')
     parser.add_argument('--base-model', type=str, default='resnet34', metavar='BM',
         help='base model type (default="resnet34")')
+    parser.add_argument('--dilate', type=int, default=0, metavar='N',
+        help='number of ResNet layer groups to dilate (default=0)')
     parser.add_argument('--truncate', type=int, default=0, metavar='N',
         help='number of ResNet layer groups to cut off (default=0)')
     parser.add_argument('--output-strat', type=str, default='dsnt', metavar='S',
@@ -164,6 +166,7 @@ def main():
     use_train_aug = not args.no_aug
     out_dir = args.out_dir
     base_model = args.base_model
+    dilate = args.dilate
     truncate = args.truncate
     initial_lr = args.lr
     schedule_step = args.schedule_step
@@ -178,6 +181,7 @@ def main():
 
     model_desc = {
         'base': base_model,
+        'dilate': dilate,
         'truncate': truncate,
         'output_strat': args.output_strat,
     }
@@ -234,8 +238,9 @@ def main():
             hostname = f.read().strip()
 
         client = pyshowoff.Client(args.showoff)
-        notebook = client.new_notebook('[{}] Human pose ({}, trunc={}, optim={}@{:.1e})'.format(
-            hostname, base_model, truncate, args.optim, args.lr))
+        notebook = client.new_notebook(
+            '[{}] Human pose ({}, dilate={}, trunc={}, optim={}@{:.1e})'.format(
+                hostname, base_model, dilate, truncate, args.optim, args.lr))
 
         reporting.setup_showoff_output(notebook)
 

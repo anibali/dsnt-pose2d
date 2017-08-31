@@ -1,4 +1,4 @@
-from common import TestCase
+from tests.common import TestCase
 
 from dsnt.data import MPIIDataset
 

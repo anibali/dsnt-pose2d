@@ -32,10 +32,12 @@ class ResNetHumanPoseModel(HumanPoseModel):
     Args:
         resnet (nn.Module): ResNet model which will form the base of the model
         n_chans (int): Number of output locations
+        dilate (int): Number of ResNet layer groups to use dilation for instead of downsampling
         truncate (int): Number of ResNet layer groups to chop off
+        output_strat (str): Strategy for going between heatmaps and coords (dsnt, fc, gauss)
     """
 
-    def __init__(self, resnet, n_chans=16, truncate=0, output_strat='dsnt'):
+    def __init__(self, resnet, n_chans=16, dilate=0, truncate=0, output_strat='dsnt'):
         super().__init__()
 
         self.n_chans = n_chans
@@ -46,12 +48,25 @@ class ResNetHumanPoseModel(HumanPoseModel):
             resnet.bn1,
             resnet.relu,
             resnet.maxpool,
+            resnet.layer1,
         ]
-        resnet_groups = [resnet.layer1, resnet.layer2, resnet.layer3, resnet.layer4]
-        fcn_modules.extend(resnet_groups[:len(resnet_groups)-truncate])
+        layers = [resnet.layer2, resnet.layer3, resnet.layer4]
+
+        for i, layer in enumerate(layers[len(layers) - dilate:]):
+            dilx = dily = 2 ** (i + 1)
+            for module in layer.modules():
+                if isinstance(module, nn.Conv2d):
+                    if module.stride == (2, 2):
+                        module.stride = (1, 1)
+                    elif module.kernel_size == (3, 3):
+                        kx, ky = module.kernel_size
+                        module.dilation = (dilx, dily)
+                        module.padding = ((dilx * (kx - 1) + 1) // 2, (dily * (ky - 1) + 1) // 2)
+
+        fcn_modules.extend(layers[:len(layers)-truncate])
         self.fcn = nn.Sequential(*fcn_modules)
         if truncate > 0:
-            feats = resnet_groups[-truncate][0].conv1.in_channels
+            feats = layers[-truncate][0].conv1.in_channels
         else:
             feats = resnet.fc.in_features
         self.hm_conv = nn.Conv2d(feats, self.n_chans, kernel_size=1, bias=False)
@@ -59,15 +74,16 @@ class ResNetHumanPoseModel(HumanPoseModel):
         if self.output_strat == 'dsnt':
             self.hm_dsnt = DSNT()
         elif self.output_strat == 'fc':
-            self.out_fc = nn.Linear(self.out_size * self.out_size, 2)
+            self.out_fc = nn.Linear(self.heatmap_size * self.heatmap_size, 2)
 
-        self.out_size = 7 * (2 ** truncate)
         self.input_size = 224
 
     def _hm_preact(self, x):
-        x = x.view(-1, self.out_size * self.out_size)
+        height = x.size(-2)
+        width = x.size(-1)
+        x = x.view(-1, height * width)
         x = nn.functional.softmax(x)
-        x = x.view(-1, self.n_chans, self.out_size, self.out_size)
+        x = x.view(-1, self.n_chans, height, width)
         return x
 
     def forward_loss(self, out_var, target_var, mask_var):
@@ -99,6 +115,10 @@ class ResNetHumanPoseModel(HumanPoseModel):
         x = inputs[0]
         x = self.fcn(x)
         x = self.hm_conv(x)
+
+        height = x.size(-2)
+        width = x.size(-1)
+
         if self.output_strat == 'dsnt':
             x = self._hm_preact(x)
             self.heatmaps = x
@@ -106,11 +126,12 @@ class ResNetHumanPoseModel(HumanPoseModel):
         elif self.output_strat == 'fc':
             x = self._hm_preact(x)
             self.heatmaps = x
-            x = x.view(-1, self.out_size * self.out_size)
+            x = x.view(-1, height * width)
             x = self.out_fc(x)
             x = x.view(-1, self.n_chans, 2)
         else:
             self.heatmaps = x
+
         return x
 
 
@@ -149,7 +170,7 @@ class HourglassHumanPoseModel(HumanPoseModel):
         return x
 
 
-def _build_resnet_pose_model(base, truncate=0, output_strat='dsnt'):
+def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt'):
     """Create a ResNet-based pose estimation model with pretrained parameters.
 
         Args:
@@ -181,7 +202,8 @@ def _build_resnet_pose_model(base, truncate=0, output_strat='dsnt'):
     # Load pretrained weights into the ResNet model
     resnet.load_state_dict(pretrained_weights)
 
-    model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=truncate, output_strat=output_strat)
+    model = ResNetHumanPoseModel(
+        resnet, n_chans=16, dilate=dilate, truncate=truncate, output_strat=output_strat)
     return model
 
 
@@ -212,7 +234,6 @@ def build_mpii_pose_model(base='resnet34', **kwargs):
         build_model = _build_resnet_pose_model
     elif base.startswith('hg'):
         build_model = _build_hg_model
-        return _build_hg_model(base, **kwargs)
     else:
         raise Exception('unsupported base model type: ' + base)
 
