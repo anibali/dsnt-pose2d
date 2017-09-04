@@ -135,7 +135,7 @@ def encode_heatmaps(coords, width, height):
 
     return target
 
-def decode_heatmaps(heatmaps):
+def decode_heatmaps(heatmaps, use_neighbours=False):
     '''Convert heatmaps into normalised coordinates.'''
 
     batch_size, n_chans, height, width = list(heatmaps.size())
@@ -151,6 +151,29 @@ def decode_heatmaps(heatmaps):
     coords[:, :, 1] = coords[:, :, 1] / height
 
     coords = coords.float()
+
+    if use_neighbours:
+        # "To improve performance at high precision thresholds the prediction
+        # is offset by a quarter of a pixel in the direction of its next highest
+        # neighbor before transforming back to the original coordinate space
+        # of the image"
+        #   - Stacked Hourglass Networks for Human Pose Estimation
+        for i, joint_coords in enumerate(coords):
+            for j, (x, y) in enumerate(joint_coords):
+                best_val = -1
+                best_ox = 0
+                best_oy = 0
+                for ox, oy in [(-1, 0), (+1, 0), (0, -1), (0, +1)]:
+                    nx = round(x) + ox
+                    ny = round(y) + oy
+                    if nx >= 0 and nx < width and ny >= 0 and ny < height:
+                        val = heatmaps[i, j, ny, nx]
+                        if val > best_val:
+                            best_val = val
+                            best_ox = ox
+                            best_oy = oy
+                joint_coords[j][0] += best_ox * 0.25
+                joint_coords[j][1] += best_oy * 0.25
 
     # Pixel coordinates to normalised coordinates
     coords.add_(0.5)

@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument('--truncate', type=int, default=0, metavar='N',
         help='number of ResNet layer groups to cut off (default=0)')
     parser.add_argument('--output-strat', type=str, default='dsnt', metavar='S',
-        help='strategy for outputting coordinates (default="dsnt")')
+        help='strategy for outputting coordinates: dsnt, gauss, fc (default="dsnt")')
     parser.add_argument('--lr', type=float, metavar='LR',
         help='initial learning rate')
     parser.add_argument('--schedule-step', type=int, metavar='N',
