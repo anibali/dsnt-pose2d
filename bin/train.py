@@ -58,8 +58,8 @@ def parse_args():
         help='number of epochs per LR drop')
     parser.add_argument('--schedule-gamma', type=float, metavar='G',
         help='factor to multiply the LR by at each drop')
-    parser.add_argument('--optim', type=str, default='sgd', metavar='S',
-        help='optimizer to use (default=sgd)')
+    parser.add_argument('--optim', type=str, default='rmsprop', metavar='S',
+        help='optimizer to use (default=rmsprop)')
     parser.add_argument('--seed', type=int, metavar='N',
         help='seed for random number generators')
 
