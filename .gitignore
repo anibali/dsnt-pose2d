@@ -13,5 +13,6 @@ core
 # Project-specific ignores
 /models/
 /out/
+/results/
 .vscode
 .idea

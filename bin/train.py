@@ -239,8 +239,8 @@ def main():
 
         client = pyshowoff.Client(args.showoff)
         notebook = client.new_notebook(
-            '[{}] Human pose ({}, dilate={}, trunc={}, optim={}@{:.1e})'.format(
-                hostname, base_model, dilate, truncate, args.optim, args.lr))
+            '[{}] Human pose ({}, strat={}, dilate={}, trunc={}, optim={}@{:.1e})'.format(
+                hostname, base_model, args.output_strat, dilate, truncate, args.optim, args.lr))
 
         reporting.setup_showoff_output(notebook)
 
