@@ -17,6 +17,15 @@ from dsnt import util, hourglass
 class HumanPoseModel(nn.Module):
     """Abstract base class for human pose estimation models."""
 
+    def _hm_preact(self, x):
+        n_chans = x.size(-3)
+        height = x.size(-2)
+        width = x.size(-1)
+        x = x.view(-1, height * width)
+        x = nn.functional.softmax(x)
+        x = x.view(-1, n_chans, height, width)
+        return x
+
     def forward_loss(self, out_var, target_var, mask_var):
         """Calculate the value of the loss function."""
         raise NotImplementedError()
@@ -42,6 +51,8 @@ class ResNetHumanPoseModel(HumanPoseModel):
 
         self.n_chans = n_chans
         self.output_strat = output_strat
+
+        self.heatmap_size = 7 * 2 ** max(dilate, truncate)
 
         fcn_modules = [
             resnet.conv1,
@@ -78,14 +89,6 @@ class ResNetHumanPoseModel(HumanPoseModel):
 
         self.input_size = 224
 
-    def _hm_preact(self, x):
-        height = x.size(-2)
-        width = x.size(-1)
-        x = x.view(-1, height * width)
-        x = nn.functional.softmax(x)
-        x = x.view(-1, self.n_chans, height, width)
-        return x
-
     def forward_loss(self, out_var, target_var, mask_var):
         if self.output_strat == 'dsnt' or self.output_strat == 'fc':
             loss = euclidean_loss(out_var, target_var, mask_var)
@@ -116,9 +119,6 @@ class ResNetHumanPoseModel(HumanPoseModel):
         x = self.fcn(x)
         x = self.hm_conv(x)
 
-        height = x.size(-2)
-        width = x.size(-1)
-
         if self.output_strat == 'dsnt':
             x = self._hm_preact(x)
             self.heatmaps = x
@@ -126,6 +126,8 @@ class ResNetHumanPoseModel(HumanPoseModel):
         elif self.output_strat == 'fc':
             x = self._hm_preact(x)
             self.heatmaps = x
+            height = x.size(-2)
+            width = x.size(-1)
             x = x.view(-1, height * width)
             x = self.out_fc(x)
             x = x.view(-1, self.n_chans, 2)
@@ -136,29 +138,51 @@ class ResNetHumanPoseModel(HumanPoseModel):
 
 
 class HourglassHumanPoseModel(HumanPoseModel):
-    def __init__(self, hg, n_chans=16):
+    def __init__(self, hg, n_chans=16, output_strat='gauss'):
         super().__init__()
 
         self.hg = hg
         self.n_chans = n_chans
-
+        self.output_strat = output_strat
+        self.heatmap_size = 64
         self.input_size = 256
 
+        if self.output_strat == 'dsnt':
+            self.hm_dsnt = DSNT()
+        elif self.output_strat == 'fc':
+            self.out_fc = nn.Linear(self.heatmap_size * self.heatmap_size, 2)
+
+
     def forward_loss(self, out_var, target_var, mask_var):
-        norm_coords = target_var.data.cpu()
-        width = out_var[0].size(-1)
-        height = out_var[0].size(-2)
+        if self.output_strat == 'dsnt' or self.output_strat == 'fc':
+            # Calculate and sum up intermediate losses
+            loss = sum([euclidean_loss(hm, target_var, mask_var) for hm in out_var])
 
-        target_hm = util.encode_heatmaps(norm_coords, width, height)
-        target_hm_var = Variable(target_hm.cuda())
+            return loss
+        elif self.output_strat == 'gauss':
+            norm_coords = target_var.data.cpu()
+            width = out_var[0].size(-1)
+            height = out_var[0].size(-2)
 
-        # Calculate and sum up intermediate losses
-        loss = sum([nn.functional.mse_loss(hm, target_hm_var) for hm in out_var])
+            target_hm = util.encode_heatmaps(norm_coords, width, height)
+            target_hm_var = Variable(target_hm.cuda())
 
-        return loss
+            # Calculate and sum up intermediate losses
+            loss = sum([nn.functional.mse_loss(hm, target_hm_var) for hm in out_var])
+
+            return loss
+
+        raise Exception('invalid configuration')
 
     def compute_coords(self, out_var):
-        return util.decode_heatmaps(out_var[-1].data.cpu())
+        last_out_var = out_var[-1]
+
+        if self.output_strat == 'dsnt' or self.output_strat == 'fc':
+            return last_out_var.data.type(torch.FloatTensor)
+        elif self.output_strat == 'gauss':
+            return util.decode_heatmaps(last_out_var.data.cpu())
+
+        raise Exception('invalid configuration')
 
     def forward(self, *inputs):
         x = inputs[0]
@@ -166,8 +190,32 @@ class HourglassHumanPoseModel(HumanPoseModel):
         # Zero-center input so pixel range is [-0.5, 0.5]
         x = x - 0.5
 
-        x = self.hg(x)
-        return x
+        hg_outs = self.hg(x)
+        out = []
+
+        if self.output_strat == 'gauss':
+            self.heatmaps = hg_outs[-1]
+            out = hg_outs
+        elif self.output_strat == 'dsnt':
+            for x in hg_outs:
+                x = self._hm_preact(x)
+                self.heatmaps = x
+                x = self.hm_dsnt(x)
+                out.append(x)
+        elif self.output_strat == 'fc':
+            for x in hg_outs:
+                x = self._hm_preact(x)
+                self.heatmaps = x
+                height = x.size(-2)
+                width = x.size(-1)
+                x = x.view(-1, height * width)
+                x = self.out_fc(x)
+                x = x.view(-1, self.n_chans, 2)
+                out.append(x)
+        else:
+            raise Exception('invalid configuration')
+
+        return out
 
 
 def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt'):
@@ -207,7 +255,7 @@ def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt'):
     return model
 
 
-def _build_hg_model(base, stacks=2, blocks=1):
+def _build_hg_model(base, stacks=2, blocks=1, output_strat='gauss'):
     if base == 'hg':
         pass
     elif base == 'hg1':
@@ -223,7 +271,7 @@ def _build_hg_model(base, stacks=2, blocks=1):
 
     hg = hourglass.HourglassNet(hourglass.Bottleneck, num_stacks=stacks, num_blocks=blocks)
 
-    model = HourglassHumanPoseModel(hg, n_chans=16)
+    model = HourglassHumanPoseModel(hg, n_chans=16, output_strat=output_strat)
     return model
 
 
