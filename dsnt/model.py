@@ -1,7 +1,9 @@
 """
 Code for building neural network models.
 """
+
 import inspect
+import re
 
 import torch
 from torch import nn
@@ -11,7 +13,7 @@ from torch.utils import model_zoo
 from torchvision import models
 
 from dsnt.nn import DSNT, euclidean_loss
-from dsnt import util, hourglass
+from dsnt import util, hourglass, minihg
 
 
 class HumanPoseModel(nn.Module):
@@ -144,7 +146,10 @@ class HourglassHumanPoseModel(HumanPoseModel):
         self.hg = hg
         self.n_chans = n_chans
         self.output_strat = output_strat
-        self.heatmap_size = 64
+        try:
+            self.heatmap_size = hg.heatmap_size
+        except AttributeError:
+            self.heatmap_size = 64
         self.input_size = 256
 
         if self.output_strat == 'dsnt':
@@ -256,20 +261,32 @@ def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt'):
 
 
 def _build_hg_model(base, stacks=2, blocks=1, output_strat='gauss'):
-    if base == 'hg':
+    m = re.search('hg(\d+)', base)
+
+    if m is not None:
+        stacks = int(m.group(1))
+    elif base == 'hg':
         pass
-    elif base == 'hg1':
-        stacks = 1
-    elif base == 'hg2':
-        stacks = 2
-    elif base == 'hg4':
-        stacks = 4
-    elif base == 'hg8':
-        stacks = 8
     else:
         raise Exception('unsupported base model type: ' + base)
 
     hg = hourglass.HourglassNet(hourglass.Bottleneck, num_stacks=stacks, num_blocks=blocks)
+
+    model = HourglassHumanPoseModel(hg, n_chans=16, output_strat=output_strat)
+    return model
+
+
+def _build_minihg_model(base, stacks=2, blocks=1, depth=2, output_strat='dsnt'):
+    m = re.search('minihg(\d+)', base)
+
+    if m is not None:
+        stacks = int(m.group(1))
+    elif base == 'minihg':
+        pass
+    else:
+        raise Exception('unsupported base model type: ' + base)
+
+    hg = minihg.MiniHourglassNet(depth=depth, num_stacks=stacks, num_blocks=blocks)
 
     model = HourglassHumanPoseModel(hg, n_chans=16, output_strat=output_strat)
     return model
@@ -282,6 +299,8 @@ def build_mpii_pose_model(base='resnet34', **kwargs):
         build_model = _build_resnet_pose_model
     elif base.startswith('hg'):
         build_model = _build_hg_model
+    elif base.startswith('minihg'):
+        build_model = _build_minihg_model
     else:
         raise Exception('unsupported base model type: ' + base)
 

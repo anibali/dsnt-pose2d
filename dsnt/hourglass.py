@@ -1,16 +1,15 @@
-'''
+"""
 The code in this file originates from another source.
 
 Source: https://github.com/bearpaw/pytorch-pose/blob/master/pose/models/hourglass.py
 Author: Wei Yang
 License: GPL 3.0
 Changes: Superficial only
-'''
+"""
 
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ['HourglassNet', 'hg1', 'hg2', 'hg4', 'hg8']
 
 class Bottleneck(nn.Module):
     expansion = 2
@@ -50,6 +49,7 @@ class Bottleneck(nn.Module):
 
         return out
 
+
 class Hourglass(nn.Module):
     def __init__(self, block, num_blocks, planes, depth):
         super(Hourglass, self).__init__()
@@ -75,7 +75,6 @@ class Hourglass(nn.Module):
             hg.append(nn.ModuleList(res))
         return nn.ModuleList(hg)
 
-
     def _hour_glass_forward(self, n, x):
         up1 = self.hg[n-1][0](x)
         low1 = F.max_pool2d(x, 2, stride=2)
@@ -95,7 +94,7 @@ class Hourglass(nn.Module):
 
 
 class HourglassNet(nn.Module):
-    '''Hourglass model from Newell et al ECCV 2016'''
+    """Hourglass model from Newell et al ECCV 2016"""
     def __init__(self, block, num_stacks=2, num_blocks=4, num_classes=16):
         super(HourglassNet, self).__init__()
 
@@ -137,8 +136,7 @@ class HourglassNet(nn.Module):
                           kernel_size=1, stride=stride, bias=True),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
+        layers = [block(self.inplanes, planes, stride, downsample)]
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
             layers.append(block(self.inplanes, planes))
@@ -177,19 +175,3 @@ class HourglassNet(nn.Module):
                 x = x + fc_ + score_
 
         return out
-
-def hg1(**kwargs):
-    model = HourglassNet(Bottleneck, num_stacks=1, num_blocks=8, **kwargs)
-    return model
-
-def hg2(**kwargs):
-    model = HourglassNet(Bottleneck, num_stacks=2, num_blocks=4, **kwargs)
-    return model
-
-def hg4(**kwargs):
-    model = HourglassNet(Bottleneck, num_stacks=4, num_blocks=2, **kwargs)
-    return model
-
-def hg8(**kwargs):
-    model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=1, **kwargs)
-    return model
