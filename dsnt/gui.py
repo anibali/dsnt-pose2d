@@ -167,7 +167,7 @@ class PoseResultsFrame(tk.Frame):
 
         img_tensor = torchvision.transforms.ToTensor()(img)
         img_tensor = img_tensor.unsqueeze(0).type(torch.cuda.FloatTensor)
-        self.model(Variable(img_tensor))
+        self.model(Variable(img_tensor, volatile=True))
         heatmaps = self.model.heatmaps.data.cpu()
         heatmaps.div_(heatmaps.max())
         hm_img = torchvision.transforms.ToPILImage()(heatmaps[0, 9:10])

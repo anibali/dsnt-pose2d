@@ -100,7 +100,7 @@ def main():
         completed = 0
         with progressbar.ProgressBar(max_value=len(dataset)) as bar:
             for i, batch in enumerate(loader):
-                in_var = Variable(batch['input'].cuda(), requires_grad=False)
+                in_var = Variable(batch['input'].cuda(), volatile=True)
 
                 out_var = model(in_var)
 

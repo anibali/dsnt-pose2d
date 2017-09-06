@@ -105,6 +105,9 @@ def main():
     model.cuda()
     model.eval()
 
+    print('Number of parameters: {:0.2f} million'.format(
+        sum(p.numel() for p in model.parameters()) * 1e-6))
+
     dataset = MPIIDataset(
         '/data/dlds/mpii-human-pose', subset, use_aug=False, size=model.input_size)
     loader = DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
@@ -115,7 +118,7 @@ def main():
     completed = 0
     with progressbar.ProgressBar(max_value=len(dataset)) as bar:
         for i, batch in enumerate(loader):
-            in_var = Variable(batch['input'].cuda(), requires_grad=False)
+            in_var = Variable(batch['input'].cuda(), volatile=True)
 
             with timer(inference_time_meter):
                 out_var = model(in_var)
