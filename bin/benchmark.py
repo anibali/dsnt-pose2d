@@ -148,6 +148,8 @@ def main():
 
     mean_pckh, _ = evaluator.meters['all'].value()
     print('Mean PCKh: {:0.6f}'.format(mean_pckh))
+    mean_hard_pckh, _ = evaluator.meters['all_hard'].value()
+    print('Mean hard PCKh: {:0.6f}'.format(mean_hard_pckh))
 
 
 if __name__ == '__main__':

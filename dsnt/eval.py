@@ -14,9 +14,16 @@ class PCKhEvaluator:
         'lelbow', 'lwrist',
     ]
 
-    def __init__(self):
+    # "Hard" joints (excludes central joints and shoulders)
+    HARD_JOINTS = [
+        0, 1, 2, 3, 4, 5, 10, 11, 14, 15
+    ]
+
+    def __init__(self, threshold=0.5):
+        self.threshold = threshold
         self.meters = {
             'all': AverageValueMeter(),
+            'all_hard': AverageValueMeter(),
         }
         for joint_name in PCKhEvaluator.JOINT_NAMES:
             self.meters[joint_name] = AverageValueMeter()
@@ -31,9 +38,11 @@ class PCKhEvaluator:
             for j in range(n_joints):
                 if joint_mask[b, j] == 1:
                     dist = torch.dist(target[b, j], pred[b, j]) / head_lengths[b]
-                    thresholded = dist <= 0.5 and 1 or 0
+                    thresholded = 1 if dist <= self.threshold else 0
                     self.meters['all'].add(thresholded)
-                    self.meters[PCKhEvaluator.JOINT_NAMES[j]].add(thresholded)
+                    if j in self.HARD_JOINTS:
+                        self.meters['all_hard'].add(thresholded)
+                    self.meters[self.JOINT_NAMES[j]].add(thresholded)
 
     def reset(self):
         '''Reset accumulated values to zero.'''

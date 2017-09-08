@@ -6,6 +6,7 @@ import math
 import time
 from contextlib import contextmanager
 
+import numpy as np
 import torch
 from PIL.ImageDraw import Draw
 
@@ -160,20 +161,12 @@ def decode_heatmaps(heatmaps, use_neighbours=False):
         #   - Stacked Hourglass Networks for Human Pose Estimation
         for i, joint_coords in enumerate(coords):
             for j, (x, y) in enumerate(joint_coords):
-                best_val = -1
-                best_ox = 0
-                best_oy = 0
-                for ox, oy in [(-1, 0), (+1, 0), (0, -1), (0, +1)]:
-                    nx = round(x) + ox
-                    ny = round(y) + oy
-                    if nx >= 0 and nx < width and ny >= 0 and ny < height:
-                        val = heatmaps[i, j, ny, nx]
-                        if val > best_val:
-                            best_val = val
-                            best_ox = ox
-                            best_oy = oy
-                joint_coords[j][0] += best_ox * 0.25
-                joint_coords[j][1] += best_oy * 0.25
+                x = round(x)
+                y = round(y)
+                if x > 0 and x < width - 1 and y > 0 and y < height - 1:
+                    hm = heatmaps[i, j]
+                    joint_coords[j, 0] += (0.25 * np.sign(hm[y, x + 1] - hm[y, x - 1]))
+                    joint_coords[j, 1] += (0.25 * np.sign(hm[y + 1, x] - hm[y - 1, x]))
 
     # Pixel coordinates to normalised coordinates
     coords.add_(0.5)

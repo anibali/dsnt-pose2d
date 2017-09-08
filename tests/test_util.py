@@ -64,11 +64,13 @@ class TestUtil(TestCase):
 
     def test_decode_heatmaps_use_neighbours(self):
         heatmaps = torch.FloatTensor([[[
-            [0.0, 0.9],
-            [0.0, 0.1],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.9, 0.1, 0.0],
+            [0.0, 0.1, 0.0, 0.0],
         ]]])
 
-        expected = torch.FloatTensor([[[0.5, -0.25]]])
+        expected = torch.FloatTensor([[[-0.125, 0.375]]])
         actual = dsnt.util.decode_heatmaps(heatmaps, use_neighbours=True)
-
+        print(actual)
         self.assertEqual(expected, actual, 1e-7)
