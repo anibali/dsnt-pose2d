@@ -192,8 +192,11 @@ class HourglassHumanPoseModel(HumanPoseModel):
     def forward(self, *inputs):
         x = inputs[0]
 
-        # Zero-center input so pixel range is [-0.5, 0.5]
-        x = x - 0.5
+        # Subtract mean from images
+        # TODO: The mean values should really be in MPIIDataset
+        mean = Variable(torch.Tensor([0.4404, 0.4440, 0.4327]).type_as(x.data))
+        mean = mean.view(1, 3, 1, 1)
+        x = x.sub(mean)
 
         hg_outs = self.hg(x)
         out = []

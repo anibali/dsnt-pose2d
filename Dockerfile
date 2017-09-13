@@ -53,6 +53,10 @@ RUN conda install -y --name pytorch-py36 -c soumith \
     pytorch=0.2.0 torchvision=0.1.9 \
  && conda clean -ya
 
+# Replace Pillow with Pillow-SIMD (a faster implementation)
+RUN pip uninstall -y pillow \
+ && pip install -U --force-reinstall pillow-simd
+
 # Install HDF5 Python bindings
 RUN conda install -y --name pytorch-py36 \
     h5py \

@@ -136,7 +136,7 @@ def encode_heatmaps(coords, width, height):
 
     return target
 
-def decode_heatmaps(heatmaps, use_neighbours=False):
+def decode_heatmaps(heatmaps, use_neighbours=True):
     '''Convert heatmaps into normalised coordinates.'''
 
     batch_size, n_chans, height, width = list(heatmaps.size())
