@@ -93,7 +93,7 @@ def main():
         model.eval()
 
         dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset,
-            use_aug=False, size=model.input_size)
+            use_aug=False, image_specs=model.image_specs)
         loader = DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
         preds = torch.DoubleTensor(len(dataset), 16, 2).zero_()
 

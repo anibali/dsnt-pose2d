@@ -12,6 +12,7 @@ import torchvision.transforms
 from torch.autograd import Variable
 from PIL import ImageTk, Image
 from dsnt.util import draw_skeleton
+from dsnt.data import MPIIDataset
 
 
 class SortBy(Enum):
@@ -163,9 +164,9 @@ class PoseResultsFrame(tk.Frame):
 
         img = img.crop([center[0] - size / 2, center[1] - size / 2,
                         center[0] + size / 2, center[1] + size / 2])
-        img = img.resize((self.model.input_size, self.model.input_size))
+        img = img.resize((self.model.image_specs.size, self.model.image_specs.size))
 
-        img_tensor = torchvision.transforms.ToTensor()(img)
+        img_tensor = self.model.image_specs.convert(img, MPIIDataset)
         img_tensor = img_tensor.unsqueeze(0).type(torch.cuda.FloatTensor)
         self.model(Variable(img_tensor, volatile=True))
         heatmaps = self.model.heatmaps.data.cpu()

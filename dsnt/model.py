@@ -14,6 +14,7 @@ from torchvision import models
 
 from dsnt.nn import DSNT, euclidean_loss
 from dsnt import util, hourglass, minihg
+from dsnt.data import ImageSpecs
 
 
 class HumanPoseModel(nn.Module):
@@ -27,6 +28,11 @@ class HumanPoseModel(nn.Module):
         x = nn.functional.softmax(x)
         x = x.view(-1, n_chans, height, width)
         return x
+
+    @property
+    def image_specs(self):
+        """Specifications of expected input images."""
+        raise NotImplementedError()
 
     def forward_loss(self, out_var, target_var, mask_var):
         """Calculate the value of the loss function."""
@@ -89,7 +95,9 @@ class ResNetHumanPoseModel(HumanPoseModel):
         elif self.output_strat == 'fc':
             self.out_fc = nn.Linear(self.heatmap_size * self.heatmap_size, 2)
 
-        self.input_size = 224
+    @property
+    def image_specs(self):
+        return ImageSpecs(size=224, subtract_mean=False, divide_stddev=False)
 
     def forward_loss(self, out_var, target_var, mask_var):
         if self.output_strat == 'dsnt' or self.output_strat == 'fc':
@@ -150,13 +158,15 @@ class HourglassHumanPoseModel(HumanPoseModel):
             self.heatmap_size = hg.heatmap_size
         except AttributeError:
             self.heatmap_size = 64
-        self.input_size = 256
 
         if self.output_strat == 'dsnt':
             self.hm_dsnt = DSNT()
         elif self.output_strat == 'fc':
             self.out_fc = nn.Linear(self.heatmap_size * self.heatmap_size, 2)
 
+    @property
+    def image_specs(self):
+        return ImageSpecs(size=256, subtract_mean=True, divide_stddev=False)
 
     def forward_loss(self, out_var, target_var, mask_var):
         if self.output_strat == 'dsnt' or self.output_strat == 'fc':
@@ -191,12 +201,6 @@ class HourglassHumanPoseModel(HumanPoseModel):
 
     def forward(self, *inputs):
         x = inputs[0]
-
-        # Subtract mean from images
-        # TODO: The mean values should really be in MPIIDataset
-        mean = Variable(torch.Tensor([0.4404, 0.4440, 0.4327]).type_as(x.data))
-        mean = mean.view(1, 3, 1, 1)
-        x = x.sub(mean)
 
         hg_outs = self.hg(x)
         out = []

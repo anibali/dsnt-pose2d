@@ -109,7 +109,7 @@ def main():
         sum(p.numel() for p in model.parameters()) * 1e-6))
 
     dataset = MPIIDataset(
-        '/data/dlds/mpii-human-pose', subset, use_aug=False, size=model.input_size)
+        '/data/dlds/mpii-human-pose', subset, use_aug=False, image_specs=model.image_specs)
     loader = DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
     preds = torch.DoubleTensor(len(dataset), 16, 2)
 

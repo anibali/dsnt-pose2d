@@ -18,7 +18,6 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch import optim
 from torch.optim import lr_scheduler
-from torchvision import transforms
 import torchnet.meter
 import tele
 import tele.meter
@@ -188,14 +187,16 @@ def main():
     model = build_mpii_pose_model(**model_desc)
     model.cuda()
 
+    input_size = model.image_specs.size
+
     ####
     # Data
     ####
 
     train_data = MPIIDataset('/data/dlds/mpii-human-pose', 'train',
-        use_aug=use_train_aug, size=model.input_size)
+        use_aug=use_train_aug, image_specs=model.image_specs)
     val_data = MPIIDataset('/data/dlds/mpii-human-pose', 'val',
-        use_aug=False, size=model.input_size)
+        use_aug=False, image_specs=model.image_specs)
     train_loader = DataLoader(train_data, batch_size, num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_data, batch_size, num_workers=4, pin_memory=True)
 
@@ -254,7 +255,7 @@ def main():
     tel['args'].set_value(vars(args))
 
     # Generate a Graphviz graph to visualise the model
-    dummy_data = torch.cuda.FloatTensor(1, 3, model.input_size, model.input_size).uniform_(0, 1)
+    dummy_data = torch.cuda.FloatTensor(1, 3, input_size, input_size).uniform_(0, 1)
     out_var = model(Variable(dummy_data, requires_grad=False))
     if isinstance(out_var, list):
         out_var = out_var[-1]
@@ -365,16 +366,16 @@ def main():
 
         train_sample = []
         for i in range(min(16, vis['train_images'].size(0))):
-            img = transforms.ToPILImage()(vis['train_images'][i])
-            coords = (vis['train_preds'][i] + 1) * (model.input_size / 2)
+            img = model.image_specs.unconvert(vis['train_images'][i], train_data)
+            coords = (vis['train_preds'][i] + 1) * (input_size / 2)
             draw_skeleton(img, coords, vis['train_masks'][i])
             train_sample.append(img)
         tel['train_sample'].set_value(train_sample)
 
         val_sample = []
         for i in range(min(16, vis['val_images'].size(0))):
-            img = transforms.ToPILImage()(vis['val_images'][i])
-            coords = (vis['val_preds'][i] + 1) * (model.input_size / 2)
+            img = model.image_specs.unconvert(vis['val_images'][i], val_data)
+            coords = (vis['val_preds'][i] + 1) * (input_size / 2)
             draw_skeleton(img, coords, vis['val_masks'][i])
             val_sample.append(img)
         tel['val_sample'].set_value(val_sample)

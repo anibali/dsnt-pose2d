@@ -5,14 +5,82 @@ Dataset loaders.
 import random
 import math
 from os import path
-
 import torch
+from torch import nn
+import torch.nn.functional
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from PIL import Image
 import h5py  #pylint: disable=unused-import
 import h5py_cache
 import numpy as np
+
+
+class ImageSpecs():
+    def __init__(self, size, subtract_mean, divide_stddev):
+        self._size = size
+        self._subtract_mean = subtract_mean
+        self._divide_stddev = divide_stddev
+
+    @property
+    def size(self):
+        return self._size
+
+    @property
+    def subtract_mean(self):
+        return self._subtract_mean
+
+    @property
+    def divide_stddev(self):
+        return self._divide_stddev
+
+    def convert(self, img, dataset_stats):
+        if isinstance(img, Image.Image):
+            img = transforms.ToTensor()(img)
+
+        # Scale the image down
+        img = nn.functional.adaptive_avg_pool2d(img, self.size).data
+
+        if self.subtract_mean:
+            mean = dataset_stats.MEAN
+        else:
+            mean = [0, 0, 0]
+        if self.divide_stddev:
+            stddev = dataset_stats.STDDEV
+        else:
+            stddev = [1, 1, 1]
+        img = transforms.Normalize(mean, stddev)(img)
+
+        return img
+
+    def unconvert(self, img_tensor, dataset_stats):
+        """Convert a Torch tensor into a PIL image, unapplying specs.
+
+        Args:
+            img_tensor (torch.FloatTensor):
+            dataset_stats:
+
+        Returns:
+            Image.Image:
+        """
+
+        img_tensor = img_tensor.clone()
+
+        if self.subtract_mean:
+            mean = dataset_stats.MEAN
+        else:
+            mean = [0, 0, 0]
+        if self.divide_stddev:
+            stddev = dataset_stats.STDDEV
+        else:
+            stddev = [1, 1, 1]
+
+        for t, m, s in zip(img_tensor, mean, stddev):
+            t.mul_(s).add_(m)
+
+        img = transforms.ToPILImage()(img_tensor)
+        return img
+
 
 class MPIIDataset(Dataset):
     '''Create a Dataset object for loading MPII Human Pose data.
@@ -33,14 +101,19 @@ class MPIIDataset(Dataset):
         5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 15, 14, 13, 12, 11, 10
     ])
 
-    def __init__(self, data_dir, subset='train', use_aug=False, size=224):
+    # Per-channel mean and standard deviation values for the dataset
+    # Channel order: red, green, blue
+    MEAN = [0.440442830324173, 0.4440267086029053, 0.4326828420162201]
+    STDDEV = [0.24576245248317719, 0.24096255004405975, 0.2468130737543106]
+
+    def __init__(self, data_dir, subset='train', use_aug=False, image_specs=ImageSpecs(224, False, False)):
         super().__init__()
 
         h5_file = path.join(data_dir, 'mpii-human-pose.h5')
         self.h5_file = h5_file
         self.subset = subset
         self.use_aug = use_aug
-        self.size = size
+        self.image_specs = image_specs
         with h5py_cache.File(h5_file, 'r', chunk_cache_mem_size=1024**3) as f:
             self.length = f[subset]['images'].shape[0]
 
@@ -134,6 +207,15 @@ class MPIIDataset(Dataset):
 
         ### Transform image ###
 
+        if self.image_specs.subtract_mean:
+            mean = self.MEAN
+        else:
+            mean = [0, 0, 0]
+        if self.image_specs.divide_stddev:
+            stddev = self.STDDEV
+        else:
+            stddev = [1, 1, 1]
+
         # I'm pretty unhappy about this. I prepared the input data into
         # CxHxW layout because this is what Torch uses, but I have to convert
         # to and from HxWxC using ToPILImage and ToTensor. Why aren't there
@@ -143,15 +225,18 @@ class MPIIDataset(Dataset):
             transforms.Lambda(lambda img: img.transpose(Image.FLIP_LEFT_RIGHT) if hflip else img),
             transforms.Lambda(lambda img: img.rotate(rot, Image.BILINEAR) if rot != 0 else img),
             transforms.CenterCrop(384 * scale),
-            transforms.Scale(self.size, Image.BILINEAR),
             transforms.ToTensor(),
         ])
         input_image = trans(raw_image)
 
         # Colour augmentation
+        # * bearpaw/pytorch-pose uses uniform(0.8, 1.2)
+        # * anewell/pose-hg-train uses uniform(0.6, 1.4)
         if self.use_aug:
             for chan in range(input_image.size(0)):
                 input_image[chan].mul_(random.uniform(0.6, 1.4)).clamp_(0, 1)
+
+        input_image = self.image_specs.convert(input_image, self)
 
         ### Set up transforms for returning to original image coords ###
 

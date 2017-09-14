@@ -13,7 +13,7 @@ class TestResNetHumanPoseModel(TestCase):
 
         model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=1)
 
-        sz = model.input_size
+        sz = model.image_specs.size
         self.assertEqual(sz, 224)
         out_var = model(Variable(torch.randn(1, 3, sz, sz)))
         self.assertEqual(out_var.size(), torch.Size([1, 16, 2]))
@@ -26,7 +26,7 @@ class TestResNetHumanPoseModel(TestCase):
 
         model = ResNetHumanPoseModel(resnet, n_chans=16, dilate=2)
 
-        sz = model.input_size
+        sz = model.image_specs.size
         self.assertEqual(sz, 224)
         out_var = model(Variable(torch.randn(1, 3, sz, sz)))
         self.assertEqual(out_var.size(), torch.Size([1, 16, 2]))

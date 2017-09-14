@@ -72,5 +72,5 @@ class TestUtil(TestCase):
 
         expected = torch.FloatTensor([[[-0.125, 0.375]]])
         actual = dsnt.util.decode_heatmaps(heatmaps, use_neighbours=True)
-        print(actual)
+
         self.assertEqual(expected, actual, 1e-7)
