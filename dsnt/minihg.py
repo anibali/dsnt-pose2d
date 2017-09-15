@@ -16,7 +16,7 @@ from dsnt.hourglass import Bottleneck, Hourglass
 
 
 class MiniHourglassNet(nn.Module):
-    def __init__(self, depth=2, num_stacks=4, num_blocks=1, num_classes=16):
+    def __init__(self, depth, num_stacks=4, num_blocks=1, num_classes=16):
         super(MiniHourglassNet, self).__init__()
 
         block = Bottleneck

@@ -283,7 +283,7 @@ def _build_hg_model(base, stacks=2, blocks=1, output_strat='gauss'):
     return model
 
 
-def _build_minihg_model(base, stacks=2, blocks=1, depth=2, output_strat='dsnt'):
+def _build_minihg_model(base, stacks=2, blocks=1, depth=3, output_strat='dsnt'):
     m = re.search('minihg(\d+)', base)
 
     if m is not None:
