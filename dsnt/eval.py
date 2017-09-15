@@ -14,19 +14,35 @@ class PCKhEvaluator:
         'lelbow', 'lwrist',
     ]
 
-    # "Hard" joints (excludes central joints and shoulders)
-    HARD_JOINTS = [
-        0, 1, 2, 3, 4, 5, 10, 11, 14, 15
-    ]
+    JOINT_GROUPS = {
+        # 'ankle': ['rankle', 'lankle'],
+        # 'knee': ['rknee', 'lknee'],
+        # 'hip': ['rhip', 'lhip'],
+        # 'wrist': ['rwrist', 'lwrist'],
+        # 'elbow': ['relbow', 'lelbow'],
+        # 'shoulder': ['rshoulder', 'lshoulder'],
+        # 'head': ['headtop', 'upperneck'],
+        'all_hard': ['rankle', 'rknee', 'rhip', 'lhip', 'lknee', 'lankle',
+                     'rwrist', 'relbow', 'lelbow', 'lwrist'],
+        'all': JOINT_NAMES
+    }
 
     def __init__(self, threshold=0.5):
         self.threshold = threshold
-        self.meters = {
-            'all': AverageValueMeter(),
-            'all_hard': AverageValueMeter(),
-        }
-        for joint_name in PCKhEvaluator.JOINT_NAMES:
-            self.meters[joint_name] = AverageValueMeter()
+
+        meter_names = self.JOINT_NAMES + list(self.JOINT_GROUPS.keys())
+        meters = {name: AverageValueMeter() for name in meter_names}
+
+        meters_for_joints = {}
+        for j, meter_name in enumerate(self.JOINT_NAMES):
+            meters_for_joints[j] = [meters[meter_name]]
+        for meter_name, joint_names in self.JOINT_GROUPS.items():
+            for joint_name in joint_names:
+                j = self.JOINT_NAMES.index(joint_name)
+                meters_for_joints[j].append(meters[meter_name])
+
+        self.meters = meters
+        self._meters_for_joints = meters_for_joints
 
     def add(self, pred, target, joint_mask, head_lengths):
         '''Calculate and accumulate PCKh values for batch.'''
@@ -39,10 +55,8 @@ class PCKhEvaluator:
                 if joint_mask[b, j] == 1:
                     dist = torch.dist(target[b, j], pred[b, j]) / head_lengths[b]
                     thresholded = 1 if dist <= self.threshold else 0
-                    self.meters['all'].add(thresholded)
-                    if j in self.HARD_JOINTS:
-                        self.meters['all_hard'].add(thresholded)
-                    self.meters[self.JOINT_NAMES[j]].add(thresholded)
+                    for meter in self._meters_for_joints[j]:
+                        meter.add(thresholded)
 
     def reset(self):
         '''Reset accumulated values to zero.'''
