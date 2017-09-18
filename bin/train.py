@@ -196,9 +196,10 @@ def main():
 
     train_data = MPIIDataset('/data/dlds/mpii-human-pose', 'train',
         use_aug=use_train_aug, image_specs=model.image_specs)
+    train_loader = DataLoader(train_data, batch_size, num_workers=4, pin_memory=True, shuffle=True)
+
     val_data = MPIIDataset('/data/dlds/mpii-human-pose', 'val',
         use_aug=False, image_specs=model.image_specs)
-    train_loader = DataLoader(train_data, batch_size, num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_data, batch_size, num_workers=4, pin_memory=True)
 
     ####
