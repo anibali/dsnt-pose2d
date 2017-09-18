@@ -207,15 +207,6 @@ class MPIIDataset(Dataset):
 
         ### Transform image ###
 
-        if self.image_specs.subtract_mean:
-            mean = self.MEAN
-        else:
-            mean = [0, 0, 0]
-        if self.image_specs.divide_stddev:
-            stddev = self.STDDEV
-        else:
-            stddev = [1, 1, 1]
-
         # I'm pretty unhappy about this. I prepared the input data into
         # CxHxW layout because this is what Torch uses, but I have to convert
         # to and from HxWxC using ToPILImage and ToTensor. Why aren't there

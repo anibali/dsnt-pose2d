@@ -30,6 +30,7 @@ BONES = {
     'left_shoulder': (13, 8),
 }
 
+
 def draw_skeleton(img, coords, joint_mask=None):
     '''Draw a pose skeleton connecting joints (for visualisation purposes).
 
@@ -64,6 +65,7 @@ def draw_skeleton(img, coords, joint_mask=None):
 
         draw.line([coords[j1, 0], coords[j1, 1], coords[j2, 0], coords[j2, 1]], fill=colour)
 
+
 def draw_gaussian(img_tensor, x, y, sigma, normalize=False, clip_size=None):
     '''Draw a Gaussian in a single-channel 2D image.
 
@@ -75,6 +77,11 @@ def draw_gaussian(img_tensor, x, y, sigma, normalize=False, clip_size=None):
         normalize: Ensures values sum to 1 when True.
         clip_size: Restrict the size of the draw region.
     '''
+
+    # To me it makes more sense to round() these, but hey - I'm just following the example
+    # of others.
+    x = int(x)
+    y = int(y)
 
     if img_tensor.dim() == 2:
         height, width = list(img_tensor.size())
@@ -136,9 +143,8 @@ def encode_heatmaps(coords, width, height):
 
     return target
 
-def decode_heatmaps(heatmaps, use_neighbours=True):
-    '''Convert heatmaps into normalised coordinates.'''
 
+def get_preds(heatmaps):
     batch_size, n_chans, height, width = list(heatmaps.size())
 
     maxval, idx = torch.max(heatmaps.view(batch_size, n_chans, -1), 2)
@@ -150,8 +156,21 @@ def decode_heatmaps(heatmaps, use_neighbours=True):
 
     coords[:, :, 0] = coords[:, :, 0] % width
     coords[:, :, 1] = coords[:, :, 1] / height
-
     coords = coords.float()
+
+    # When maxval is zero, select coords (0, 0)
+    pred_mask = maxval.gt(0).repeat(1, 1, 2).float()
+    torch.mul(coords, pred_mask, out=coords)
+
+    return coords
+
+
+def decode_heatmaps(heatmaps, use_neighbours=True):
+    '''Convert heatmaps into normalised coordinates.'''
+
+    coords = get_preds(heatmaps)
+
+    _, _, height, width = list(heatmaps.size())
 
     if use_neighbours:
         # "To improve performance at high precision thresholds the prediction
@@ -161,8 +180,8 @@ def decode_heatmaps(heatmaps, use_neighbours=True):
         #   - Stacked Hourglass Networks for Human Pose Estimation
         for i, joint_coords in enumerate(coords):
             for j, (x, y) in enumerate(joint_coords):
-                x = round(x)
-                y = round(y)
+                x = int(x)
+                y = int(y)
                 if x > 0 and x < width - 1 and y > 0 and y < height - 1:
                     hm = heatmaps[i, j]
                     joint_coords[j, 0] += (0.25 * np.sign(hm[y, x + 1] - hm[y, x - 1]))
@@ -174,11 +193,8 @@ def decode_heatmaps(heatmaps, use_neighbours=True):
     coords[:, :, 1].mul_(2 / height)
     coords.add_(-1)
 
-    # When maxval is zero, select coords (0, 0) which correspond to image centre
-    pred_mask = maxval.gt(0).repeat(1, 1, 2).float()
-    torch.mul(coords, pred_mask, out=coords)
-
     return coords
+
 
 @contextmanager
 def timer(meter):
@@ -186,6 +202,7 @@ def timer(meter):
     yield
     time_elapsed = time.perf_counter() - start_time
     meter.add(time_elapsed)
+
 
 def generator_timer(generator, meter):
     while True:
