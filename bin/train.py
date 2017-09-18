@@ -53,8 +53,8 @@ def parse_args():
         help='strategy for outputting coordinates: dsnt, gauss, fc (default="dsnt")')
     parser.add_argument('--lr', type=float, metavar='LR',
         help='initial learning rate')
-    parser.add_argument('--schedule-step', type=int, metavar='N',
-        help='number of epochs per LR drop')
+    parser.add_argument('--schedule-milestones', type=int, nargs='+',
+        help='list of epochs at which to drop the learning rate')
     parser.add_argument('--schedule-gamma', type=float, metavar='G',
         help='factor to multiply the LR by at each drop')
     parser.add_argument('--optim', type=str, default='rmsprop', metavar='S',
@@ -69,11 +69,12 @@ def parse_args():
 
     if args.optim == 'sgd':
         args.lr = args.lr or 0.2
-        args.schedule_step = args.schedule_step or 50
         args.schedule_gamma = args.schedule_gamma or 0.5
+        args.schedule_milestones = args.schedule_milestones or [20, 40, 60, 80, 120, 140, 160, 180]
     elif args.optim == 'rmsprop':
         args.lr = args.lr or 2.5e-4
         args.schedule_gamma = args.schedule_gamma or 0.1
+        args.schedule_milestones = args.schedule_milestones or [60, 90]
 
     return args
 
@@ -168,7 +169,7 @@ def main():
     dilate = args.dilate
     truncate = args.truncate
     initial_lr = args.lr
-    schedule_step = args.schedule_step
+    schedule_milestones = args.schedule_milestones
     schedule_gamma = args.schedule_gamma
 
     experiment_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S%f')
@@ -265,12 +266,12 @@ def main():
     # Initialize optimiser and learning rate scheduler
     if args.optim == 'sgd':
         optimizer = optim.SGD(model.parameters(), lr=initial_lr, momentum=0.9)
-        scheduler = lr_scheduler.StepLR(optimizer, schedule_step, schedule_gamma)
     elif args.optim == 'rmsprop':
         optimizer = optim.RMSprop(model.parameters(), lr=initial_lr)
-        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[60, 90], gamma=schedule_gamma)
     else:
         raise Exception('unrecognised optimizer: {}'.format(args.optim))
+
+    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=schedule_milestones, gamma=schedule_gamma)
 
     # `vis` will hold a few samples for visualisation
     vis = {}
