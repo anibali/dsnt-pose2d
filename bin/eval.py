@@ -27,7 +27,7 @@ import numpy as np
 
 from dsnt.model import build_mpii_pose_model
 from dsnt.data import MPIIDataset
-from dsnt.eval import PCKhEvaluator
+from dsnt.evaluator import PCKhEvaluator
 import dsnt.gui
 
 

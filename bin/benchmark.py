@@ -21,7 +21,7 @@ from torchnet.meter.meter import Meter
 
 from dsnt.model import build_mpii_pose_model
 from dsnt.data import MPIIDataset
-from dsnt.eval import PCKhEvaluator
+from dsnt.evaluator import PCKhEvaluator
 from dsnt.util import timer
 
 

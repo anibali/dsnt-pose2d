@@ -44,6 +44,10 @@ class PCKhEvaluator:
         self.meters = meters
         self._meters_for_joints = meters_for_joints
 
+    @staticmethod
+    def calculate_pckh_distance(pred, target, ref_dist):
+        return torch.dist(target, pred) / ref_dist
+
     def add(self, pred, target, joint_mask, head_lengths):
         '''Calculate and accumulate PCKh values for batch.'''
 
@@ -53,7 +57,7 @@ class PCKhEvaluator:
         for b in range(batch_size):
             for j in range(n_joints):
                 if joint_mask[b, j] == 1:
-                    dist = torch.dist(target[b, j], pred[b, j]) / head_lengths[b]
+                    dist = self.calculate_pckh_distance(target[b, j], pred[b, j], head_lengths[b])
                     thresholded = 1 if dist <= self.threshold else 0
                     for meter in self._meters_for_joints[j]:
                         meter.add(thresholded)

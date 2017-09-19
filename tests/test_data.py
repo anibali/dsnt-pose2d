@@ -2,6 +2,7 @@ from tests.common import TestCase
 
 from dsnt.data import MPIIDataset, ImageSpecs
 
+
 class TestMPIIDataset(TestCase):
     def test_len(self):
         test_set = MPIIDataset('/data/dlds/mpii-human-pose', 'test')

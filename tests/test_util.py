@@ -3,9 +3,10 @@ from tests.common import TestCase
 
 import dsnt.util
 
+
 class TestUtil(TestCase):
     def test_draw_gaussian(self):
-        expected = torch.FloatTensor([[
+        expected = torch.Tensor([[
             [0.00000, 0.00000, 0.00005, 0.00020, 0.00034, 0.00020, 0.00005, 0.00000, 0.00000],
             [0.00000, 0.00012, 0.00150, 0.00674, 0.01111, 0.00674, 0.00150, 0.00012, 0.00000],
             [0.00005, 0.00150, 0.01832, 0.08208, 0.13534, 0.08208, 0.01832, 0.00150, 0.00005],
@@ -23,7 +24,7 @@ class TestUtil(TestCase):
         self.assertEqual(expected, actual, 1e-5)
 
     def test_draw_gaussian_clipped(self):
-        expected = torch.FloatTensor([[
+        expected = torch.Tensor([[
             [0.00000, 0.00000, 0.00000, 0.00000, 0.00000],
             [0.01111, 0.00674, 0.00150, 0.00012, 0.00000],
             [0.13534, 0.08208, 0.01832, 0.00150, 0.00000],
@@ -37,9 +38,9 @@ class TestUtil(TestCase):
         self.assertEqual(expected, actual, 1e-5)
 
     def test_encode_heatmaps(self):
-        coords = torch.FloatTensor([[[-0.8, 0.8]]])
+        coords = torch.Tensor([[[-0.8, 0.8]]])
 
-        expected = torch.FloatTensor([[[
+        expected = torch.Tensor([[[
             [0.00000, 0.00000, 0.00000, 0.00000, 0.00000],
             [0.01111, 0.00674, 0.00150, 0.00012, 0.00000],
             [0.13534, 0.08208, 0.01832, 0.00150, 0.00000],
@@ -52,25 +53,25 @@ class TestUtil(TestCase):
         self.assertEqual(expected, actual, 1e-5)
 
     def test_decode_heatmaps(self):
-        heatmaps = torch.FloatTensor([[[
+        heatmaps = torch.Tensor([[[
             [0.0, 0.9],
             [0.0, 0.1],
         ]]])
 
-        expected = torch.FloatTensor([[[0.5, -0.5]]])
+        expected = torch.Tensor([[[0.5, -0.5]]])
         actual = dsnt.util.decode_heatmaps(heatmaps)
 
         self.assertEqual(expected, actual, 1e-7)
 
     def test_decode_heatmaps_use_neighbours(self):
-        heatmaps = torch.FloatTensor([[[
+        heatmaps = torch.Tensor([[[
             [0.0, 0.0, 0.0, 0.0],
             [0.0, 0.0, 0.0, 0.0],
             [0.0, 0.9, 0.1, 0.0],
             [0.0, 0.1, 0.0, 0.0],
         ]]])
 
-        expected = torch.FloatTensor([[[-0.125, 0.375]]])
+        expected = torch.Tensor([[[-0.125, 0.375]]])
         actual = dsnt.util.decode_heatmaps(heatmaps, use_neighbours=True)
 
         self.assertEqual(expected, actual, 1e-7)

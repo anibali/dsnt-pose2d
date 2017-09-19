@@ -1,11 +1,11 @@
 from tests.common import TestCase
 
 import torch
-from torch import nn
 from torch.autograd import Variable
 import torchvision.models
 
 from dsnt.model import ResNetHumanPoseModel
+
 
 class TestResNetHumanPoseModel(TestCase):
     def test_truncate(self):
