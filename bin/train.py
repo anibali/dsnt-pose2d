@@ -28,6 +28,7 @@ from dsnt.evaluator import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
 from dsnt.visualize import make_dot
 from dsnt.util import draw_skeleton, timer, generator_timer
+from dsnt.meter import MaxValueMeter
 
 def parse_args():
     'Parse command-line arguments.'
@@ -106,9 +107,12 @@ class Reporting():
             'val_sample': tele.meter.ValueMeter(),
             'train_sample': tele.meter.ValueMeter(),
             'args': tele.meter.ValueMeter(skip_reset=True),
+            'train_pckh_total': train_eval.meters['total_mpii'],
+            'val_pckh_total': val_eval.meters['total_mpii'],
             'train_pckh_all': train_eval.meters['all'],
             'val_pckh_all': val_eval.meters['all'],
             'val_preds': tele.meter.ValueMeter(),
+            'best_val_preds': tele.meter.ValueMeter(skip_reset=True),
             'model_graph': tele.meter.ValueMeter(skip_reset=True),
         })
 
@@ -117,7 +121,7 @@ class Reporting():
 
         from tele.console import views
         meters_to_print = [
-            'train_loss', 'val_loss', 'train_pckh_all', 'val_pckh_all', 'epoch_time'
+            'train_loss', 'val_loss', 'train_pckh_total', 'val_pckh_total', 'epoch_time'
         ]
         self.telemetry.sink(tele.console.Conf(), [
             views.KeyValue([mn]) for mn in meters_to_print
@@ -130,8 +134,9 @@ class Reporting():
 
         self.telemetry.sink(tele.folder.Conf(out_dir), [
             views.GrowingJSON(['epoch', 'train_loss', 'val_loss', 'epoch_time',
-                'train_pckh_all', 'val_pckh_all'], 'saved_metrics.json'),
-            views.HDF5(['val_preds'], 'val_preds_{:04d}.h5', {'val_preds': 'preds'}),
+                'train_pckh_total', 'val_pckh_total'], 'saved_metrics.json'),
+            views.HDF5(['val_preds'], 'val_preds.h5', {'val_preds': 'preds'}),
+            views.HDF5(['best_val_preds'], 'val_preds-best.h5', {'best_val_preds': 'preds'}),
         ])
 
     def setup_showoff_output(self, notebook):
@@ -142,8 +147,9 @@ class Reporting():
         self.telemetry.sink(tele.showoff.Conf(notebook), [
             views.LineGraph(['train_loss', 'val_loss'], 'Loss'),
             views.LineGraph(['train_pckh_all', 'val_pckh_all'], 'PCKh all'),
+            views.LineGraph(['train_pckh_total', 'val_pckh_total'], 'PCKh total'),
             views.Inspect(['experiment_id', 'epoch', 'train_loss', 'val_loss',
-                'train_pckh_all', 'val_pckh_all'], 'Inspect'),
+                'train_pckh_total', 'val_pckh_total', 'train_pckh_all', 'val_pckh_all'], 'Inspect'),
             views.LineGraph(['epoch_time'], 'Time'),
             views.Inspect(['args'], 'Command-line arguments', flatten=True),
             views.Images(['train_sample'], 'Training samples', images_per_row=2),
@@ -262,7 +268,13 @@ def main():
     if isinstance(out_var, list):
         out_var = out_var[-1]
     tel['model_graph'].set_value(make_dot(out_var, dict(model.named_parameters())))
-    dummy_data = None
+    del dummy_data
+
+    best_val_acc_meter = MaxValueMeter(skip_reset=True)
+
+    ####
+    # Optimiser
+    ####
 
     # Initialize optimiser and learning rate scheduler
     if args.optim == 'sgd':
@@ -382,14 +394,22 @@ def main():
             val_sample.append(img)
         tel['val_sample'].set_value(val_sample)
 
+        val_acc = val_eval.meters['total_mpii'].value()[0]
+        is_best = best_val_acc_meter.add(val_acc)
+
         if exp_out_dir:
             state = {
                 'state_dict': model.state_dict(),
                 'model_desc': model_desc,
                 'optimizer': optimizer.state_dict(),
                 'epoch': epoch + 1,
+                'val_acc': val_acc,
             }
             torch.save(state, os.path.join(exp_out_dir, 'model.pth'))
+
+            if is_best:
+                torch.save(state, os.path.join(exp_out_dir, 'model-best.pth'))
+                tel['best_val_preds'].set_value(tel['val_preds'].value())
 
         tel.step()
         train_eval.reset()

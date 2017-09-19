@@ -15,16 +15,33 @@ class PCKhEvaluator:
     ]
 
     JOINT_GROUPS = {
-        # 'ankle': ['rankle', 'lankle'],
-        # 'knee': ['rknee', 'lknee'],
-        # 'hip': ['rhip', 'lhip'],
-        # 'wrist': ['rwrist', 'lwrist'],
-        # 'elbow': ['relbow', 'lelbow'],
-        # 'shoulder': ['rshoulder', 'lshoulder'],
-        # 'head': ['headtop', 'upperneck'],
-        'all_hard': ['rankle', 'rknee', 'rhip', 'lhip', 'lknee', 'lankle',
-                     'rwrist', 'relbow', 'lelbow', 'lwrist'],
-        'all': JOINT_NAMES
+        # # Pairs of joints used in MPII evaluation code
+        # # * https://github.com/anibali/eval-mpii-pose/blob/2eaa57babc353d1604c31d91583ad79ca0484d5b/eval/genTablePCK.m#L5
+        # 'ankle': {'rankle', 'lankle'},
+        # 'knee': {'rknee', 'lknee'},
+        # 'hip': {'rhip', 'lhip'},
+        # 'wrist': {'rwrist', 'lwrist'},
+        # 'elbow': {'relbow', 'lelbow'},
+        # 'shoulder': {'rshoulder', 'lshoulder'},
+        # 'head': {'headtop', 'upperneck'},
+
+        # "Upper body" according to calculations in the MPII evaluation code
+        # * https://github.com/anibali/eval-mpii-pose/blob/2eaa57babc353d1604c31d91583ad79ca0484d5b/eval/annolist2matrix.m#L22
+        # * https://github.com/anibali/eval-mpii-pose/blob/2eaa57babc353d1604c31d91583ad79ca0484d5b/eval/computePCK.m#L14-L18
+        'ubody': {'rwrist', 'relbow', 'rshoulder', 'lshoulder', 'lelbow', 'lwrist'},
+
+        # "Total accuracy" according to calculations by anewell and bearpaw
+        # * https://github.com/anewell/pose-hg-train/blob/2fef6915fbd836a5d218a5d2f0c87c463532f1a6/src/util/dataset/mpii.lua#L6
+        # * https://github.com/bearpaw/pytorch-pose/blob/3e3e6debde71fee93ef37f7936ccbd5ad0925b33/example/mpii.py#L28
+        'total_anewell': {'rankle', 'rknee', 'rhip', 'lhip', 'lknee', 'lankle',
+                        'rwrist', 'relbow', 'lelbow', 'lwrist'},
+
+        # "Total accuracy" according to calculations in the MPII evaluation code
+        # * https://github.com/anibali/eval-mpii-pose/blob/2eaa57babc353d1604c31d91583ad79ca0484d5b/eval/annolist2matrix.m#L21-L23
+        'total_mpii': set(JOINT_NAMES) - {'pelvis', 'thorax'},
+
+        # Total accuracy for all of the joints
+        'all': set(JOINT_NAMES),
     }
 
     def __init__(self, threshold=0.5):
@@ -35,11 +52,11 @@ class PCKhEvaluator:
 
         meters_for_joints = {}
         for j, meter_name in enumerate(self.JOINT_NAMES):
-            meters_for_joints[j] = [meters[meter_name]]
+            meters_for_joints[j] = {meters[meter_name]}
         for meter_name, joint_names in self.JOINT_GROUPS.items():
             for joint_name in joint_names:
                 j = self.JOINT_NAMES.index(joint_name)
-                meters_for_joints[j].append(meters[meter_name])
+                meters_for_joints[j].add(meters[meter_name])
 
         self.meters = meters
         self._meters_for_joints = meters_for_joints
