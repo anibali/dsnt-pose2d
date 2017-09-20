@@ -1,13 +1,14 @@
-'''
+"""
 Custom reusable nn modules.
-'''
+"""
 
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
+
 class DSNT(nn.Module):
-    '''The DSNT layer takes n-channel spatial input and outputs n pairs of
+    """The DSNT layer takes n-channel spatial input and outputs n pairs of
     coordinates. Works with and without batches.
 
     For example, let's say you are trying to create a network for finding the
@@ -18,7 +19,7 @@ class DSNT(nn.Module):
     Input: Spatial heatmap data (batches x n x rows x cols)
     Output: Numerical coordinates (batches x n x 2).
                     Top-left = (x=-1, y=-1), bottom-right = (x=1, y=1).
-    '''
+    """
 
     def __init__(self):
         super().__init__()
@@ -70,7 +71,7 @@ class DSNT(nn.Module):
             batch_mode = True
             batch_size, n_chans, height, width = list(x.size())
         else:
-            raise 'DSNT expects 3D or 4D input'
+            raise Exception('DSNT expects 3D or 4D input')
 
         fixed_weights = self._prepare_fixed_weights(width, height, x.data.new)
 
@@ -85,8 +86,9 @@ class DSNT(nn.Module):
 
         return output.view(output_size)
 
+
 def euclidean_loss(actual, target, mask=None):
-    '''Calculate the average Euclidean loss for multi-point samples.
+    """Calculate the average Euclidean loss for multi-point samples.
 
     Each sample must contain `n` points, each with `d` dimensions. For example,
     in the MPII human pose estimation task n=16 (16 joint locations) and
@@ -97,13 +99,13 @@ def euclidean_loss(actual, target, mask=None):
         target (Tensor): Ground truth target ([batches x] n x d)
         mask (Tensor, optional): Mask of points to include in the loss calculation
             ([batches x] n), defaults to including everything
-    '''
+    """
     if actual.dim() == 2:
         batch_size = 1
     elif actual.dim() == 3:
         batch_size = actual.size(0)
     else:
-        raise 'euclidean_loss expects 2D or 3D input'
+        raise Exception('euclidean_loss expects 2D or 3D input')
 
     n_chans = actual.size(-2)
 
