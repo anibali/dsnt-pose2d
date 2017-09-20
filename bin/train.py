@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-'''
+"""
 This script will train a model on the MPII Human Pose dataset.
 
 It is expected that the full dataset is available in
 `/data/dlds/mpii-human-pose/`, which should be installed
 using [DLDS](https://github.com/anibali/dlds).
-'''
+"""
 
 import os
 import argparse
@@ -30,38 +30,43 @@ from dsnt.visualize import make_dot
 from dsnt.util import draw_skeleton, timer, generator_timer
 from dsnt.meter import MaxValueMeter
 
+
 def parse_args():
-    'Parse command-line arguments.'
+    """Parse command-line arguments."""
 
     parser = argparse.ArgumentParser(description='DSNT human pose model trainer')
     parser.add_argument('--epochs', type=int, default=200, metavar='N',
-        help='number of epochs to train (default=200)')
+                        help='number of epochs to train (default=200)')
     parser.add_argument('--batch-size', type=int, default=32, metavar='N',
-        help='input batch size (default=32)')
+                        help='input batch size (default=32)')
     parser.add_argument('--showoff', type=str, default='showoff:3000', metavar='HOST:PORT',
-        help='network location of the Showoff server (default="showoff:3000")')
+                        help='network location of the Showoff server (default="showoff:3000")')
     parser.add_argument('--no-aug', action='store_true', default=False,
-        help='disable training data augmentation')
+                        help='disable training data augmentation')
     parser.add_argument('--out-dir', type=str, default='out', metavar='PATH',
-        help='path to output directory (default="out")')
+                        help='path to output directory (default="out")')
     parser.add_argument('--base-model', type=str, default='resnet34', metavar='BM',
-        help='base model type (default="resnet34")')
+                        help='base model type (default="resnet34")')
     parser.add_argument('--dilate', type=int, default=0, metavar='N',
-        help='number of ResNet layer groups to dilate (default=0)')
+                        help='number of ResNet layer groups to dilate (default=0)')
     parser.add_argument('--truncate', type=int, default=0, metavar='N',
-        help='number of ResNet layer groups to cut off (default=0)')
+                        help='number of ResNet layer groups to cut off (default=0)')
     parser.add_argument('--output-strat', type=str, default='dsnt', metavar='S',
-        help='strategy for outputting coordinates: dsnt, gauss, fc (default="dsnt")')
+                        choices=['dsnt', 'gauss', 'fc'],
+                        help='strategy for outputting coordinates (default="dsnt")')
+    parser.add_argument('--preact', type=str, default='softmax', metavar='S',
+                        choices=['softmax', 'thresholded_softmax'],
+                        help='heatmap preactivation function (default="softmax")')
     parser.add_argument('--lr', type=float, metavar='LR',
-        help='initial learning rate')
+                        help='initial learning rate')
     parser.add_argument('--schedule-milestones', type=int, nargs='+',
-        help='list of epochs at which to drop the learning rate')
+                        help='list of epochs at which to drop the learning rate')
     parser.add_argument('--schedule-gamma', type=float, metavar='G',
-        help='factor to multiply the LR by at each drop')
+                        help='factor to multiply the LR by at each drop')
     parser.add_argument('--optim', type=str, default='rmsprop', metavar='S',
-        help='optimizer to use (default=rmsprop)')
+                        help='optimizer to use (default=rmsprop)')
     parser.add_argument('--seed', type=int, metavar='N',
-        help='seed for random number generators')
+                        help='seed for random number generators')
 
     args = parser.parse_args()
 
@@ -190,6 +195,7 @@ def main():
         'dilate': dilate,
         'truncate': truncate,
         'output_strat': args.output_strat,
+        'preact': args.preact,
     }
     model = build_mpii_pose_model(**model_desc)
     model.cuda()
@@ -311,6 +317,7 @@ def main():
 
             with timer(tel['train_criterion_time']):
                 loss = model.forward_loss(out_var, target_var, mask_var)
+                assert not np.isnan(loss.data[0]), 'training loss should not be nan'
                 tel['train_loss'].add(loss.data[0])
 
             with timer(tel['train_eval_time']):

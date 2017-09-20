@@ -1,10 +1,10 @@
 """
 Custom reusable nn modules.
 """
-
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
+from torch.autograd import Variable, Function
 
 
 class DSNT(nn.Module):
@@ -123,3 +123,48 @@ def euclidean_loss(actual, target, mask=None):
     loss = dist.sum() / (batch_size * n_chans)
 
     return loss
+
+
+class ThresholdedSoftmax(Function):
+    """
+
+    """
+
+    @staticmethod
+    def forward(ctx, inp, threshold=-np.inf, eps=1e-9):
+        mask = inp.ge(threshold).type_as(inp)
+
+        d = -inp.max(-1, keepdim=True)[0]
+        exps = (inp + d).exp() * mask
+        out = exps / (exps.sum(-1, keepdim=True) + eps)
+
+        ctx.save_for_backward(out)
+        return out
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        [out] = ctx.saved_variables
+
+        # Same as normal softmax gradient calculation
+        sum = (grad_output * out).sum(-1, keepdim=True)
+        grad_input = out * (grad_output - sum)
+
+        return grad_input, None, None
+
+
+def thresholded_softmax(inp, threshold=-np.inf, eps=1e-9):
+    """A softmax variant which masks out inputs below a certain threshold.
+
+    For the normal softmax operation, all outputs will be greater than
+    zero. In contrast, this softmax variant ensures that inputs below
+    the given threshold value will result in a corresponding zero in the
+    output. The output will still be a valid probability distribution
+    (sums to 1).
+
+    Args:
+        inp: The tensor containing input activations
+        threshold: The threshold value applied to input activations
+        eps: A small number to prevent division by zero
+    """
+
+    return ThresholdedSoftmax.apply(inp, threshold, eps)

@@ -1,8 +1,8 @@
 import torch
-from torch.autograd import Variable
+from torch.autograd import Variable, gradcheck
 from tests.common import TestCase
 
-from dsnt.nn import DSNT, euclidean_loss
+from dsnt.nn import DSNT, euclidean_loss, thresholded_softmax
 
 
 class TestDSNT(TestCase):
@@ -131,3 +131,27 @@ class TestEuclideanLoss(TestCase):
         actual = euclidean_loss(Variable(output), Variable(target), Variable(mask))
 
         self.assertEqual(expected, actual.data)
+
+
+class TestThresholdedSoftmax(TestCase):
+    def test_forward(self):
+        in_var = Variable(torch.Tensor([2, 1, 3]))
+        actual = thresholded_softmax(in_var, 1.5).data
+        expected = torch.Tensor([0.26894142, 0, 0.73105858])
+        self.assertEqual(actual, expected)
+
+    def test_backward(self):
+        in_var = Variable(torch.randn(20), requires_grad=True)
+        threshold = 0
+        self.assertTrue(gradcheck(thresholded_softmax, (in_var, threshold)))
+
+    def test_forward_batch(self):
+        in_var = Variable(torch.Tensor([[2, 1, 3], [4, 0, 0]]))
+        actual = thresholded_softmax(in_var, 1.5).data
+        expected = torch.Tensor([[0.26894142, 0, 0.73105858], [1, 0, 0]])
+        self.assertEqual(actual, expected)
+
+    def test_backward_batch(self):
+        in_var = Variable(torch.randn(3, 20), requires_grad=True)
+        threshold = 0
+        self.assertTrue(gradcheck(thresholded_softmax, (in_var, threshold)))
