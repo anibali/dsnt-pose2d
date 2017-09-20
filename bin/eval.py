@@ -36,15 +36,15 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description='DSNT human pose model evaluator')
     parser.add_argument('--model', type=str, metavar='PATH',
-        help='model state file')
+                        help='model state file')
     parser.add_argument('--preds', type=str, metavar='PATH',
-        help='predictions file (will be written to if model is specified)')
+                        help='predictions file (will be written to if model is specified)')
     parser.add_argument('--subset', type=str, default='val', metavar='S',
-        help='data subset to evaluate on (default="val")')
+                        help='data subset to evaluate on (default="val")')
     parser.add_argument('--visualize', action='store_true', default=False,
-        help='visualize the results')
+                        help='visualize the results')
     parser.add_argument('--seed', type=int, metavar='N',
-        help='seed for random number generators')
+                        help='seed for random number generators')
 
     args = parser.parse_args()
 
@@ -53,6 +53,7 @@ def parse_args():
 
     return args
 
+
 def seed_random_number_generators(seed):
     """Seed all random number generators."""
 
@@ -60,6 +61,7 @@ def seed_random_number_generators(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
 
 def main():
     """Main evaluation entrypoint function."""
@@ -143,6 +145,7 @@ def main():
     # Visualise predictions
     if visualize:
         dsnt.gui.run_gui(preds, annot_file, model)
+
 
 if __name__ == '__main__':
     main()
