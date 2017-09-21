@@ -196,6 +196,18 @@ def decode_heatmaps(heatmaps, use_neighbours=True):
     return coords
 
 
+def type_as_index(indices, tensor):
+    if tensor.is_cuda:
+        return indices.type(torch.cuda.LongTensor)
+    return indices.type(torch.LongTensor)
+
+
+def reverse_tensor(tensor, dim):
+    indices = torch.arange(tensor.size(dim) - 1, -1, -1)
+    indices = type_as_index(indices, tensor)
+    return tensor.index_select(dim, indices)
+
+
 @contextmanager
 def timer(meter):
     start_time = time.perf_counter()

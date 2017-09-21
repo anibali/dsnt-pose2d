@@ -25,10 +25,11 @@ from torch.autograd import Variable
 import h5py
 import numpy as np
 
-from dsnt.model import build_mpii_pose_model
+from dsnt.model import build_mpii_pose_model, ResNetHumanPoseModel
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
 import dsnt.gui
+from dsnt.util import type_as_index, reverse_tensor
 
 
 def parse_args():
@@ -41,6 +42,8 @@ def parse_args():
                         help='predictions file (will be written to if model is specified)')
     parser.add_argument('--subset', type=str, default='val', metavar='S',
                         help='data subset to evaluate on (default="val")')
+    parser.add_argument('--disable-flip', action='store_true', default=False,
+                        help='disable the use of horizontally flipped images')
     parser.add_argument('--visualize', action='store_true', default=False,
                         help='visualize the results')
     parser.add_argument('--seed', type=int, metavar='N',
@@ -94,6 +97,12 @@ def main():
         model.cuda()
         model.eval()
 
+        use_flipped = True
+        if args.disable_flip or not isinstance(model, ResNetHumanPoseModel):
+            use_flipped = False
+
+        print('Using flip augmentations? {}'.format(use_flipped))
+
         dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset,
             use_aug=False, image_specs=model.image_specs)
         loader = DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
@@ -102,20 +111,38 @@ def main():
         completed = 0
         with progressbar.ProgressBar(max_value=len(dataset)) as bar:
             for i, batch in enumerate(loader):
-                in_var = Variable(batch['input'].cuda(), volatile=True)
+                batch_size = batch['input'].size(0)
 
-                out_var = model(in_var)
+                if use_flipped:
+                    # Normal
+                    in_var = Variable(batch['input'].cuda(), volatile=True)
+                    hm_var = model.forward_part1(in_var)
+                    hm1 = Variable(hm_var.data.clone(), volatile=True)
 
-                coords = model.compute_coords(out_var)
+                    # Flipped
+                    in_var = Variable(reverse_tensor(batch['input'], -1).cuda(), volatile=True)
+                    hm_var = model.forward_part1(in_var)
+                    hm2 = reverse_tensor(hm_var, -1)
+                    hm2 = hm2.index_select(-3, type_as_index(MPIIDataset.HFLIP_INDICES, hm2))
 
-                norm_preds = coords.double()
+                    hm = (hm1 + hm2) / 2
+                    out_var = model.forward_part2(hm)
+                    coords = model.compute_coords(out_var)
+                    orig_preds = torch.baddbmm(
+                        batch['transform_b'],
+                        coords.double(),
+                        batch['transform_m'])
+                else:
+                    in_var = Variable(batch['input'].cuda(), volatile=True)
+                    out_var = model(in_var)
+                    coords = model.compute_coords(out_var)
+                    orig_preds = torch.baddbmm(
+                        batch['transform_b'],
+                        coords.double(),
+                        batch['transform_m'])
+
                 pos = i * batch_size
-                orig_preds = preds[pos:(pos + norm_preds.size(0))]
-                torch.baddbmm(
-                    batch['transform_b'],
-                    norm_preds,
-                    batch['transform_m'],
-                    out=orig_preds)
+                preds[pos:(pos + batch_size)] = orig_preds
 
                 completed += in_var.data.size(0)
                 bar.update(completed)

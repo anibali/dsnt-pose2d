@@ -130,10 +130,15 @@ class ResNetHumanPoseModel(HumanPoseModel):
 
         raise Exception('invalid configuration')
 
-    def forward(self, *inputs):
-        x = inputs[0]
+    def forward_part1(self, x):
+        """Forward from images to unnormalized heatmaps"""
+
         x = self.fcn(x)
         x = self.hm_conv(x)
+        return x
+
+    def forward_part2(self, x):
+        """Forward from unnormalized heatmaps to output"""
 
         if self.output_strat == 'dsnt':
             x = self._hm_preact(x, self.preact)
@@ -149,6 +154,13 @@ class ResNetHumanPoseModel(HumanPoseModel):
             x = x.view(-1, self.n_chans, 2)
         else:
             self.heatmaps = x
+
+        return x
+
+    def forward(self, *inputs):
+        x = inputs[0]
+        x = self.forward_part1(x)
+        x = self.forward_part2(x)
 
         return x
 
