@@ -131,7 +131,7 @@ class ThresholdedSoftmax(Function):
     """
 
     @staticmethod
-    def forward(ctx, inp, threshold=-np.inf, eps=1e-9):
+    def forward(ctx, inp, threshold=-np.inf, eps=1e-12):
         mask = inp.ge(threshold).type_as(inp)
 
         d = -inp.max(-1, keepdim=True)[0]
@@ -152,7 +152,7 @@ class ThresholdedSoftmax(Function):
         return grad_input, None, None
 
 
-def thresholded_softmax(inp, threshold=-np.inf, eps=1e-9):
+def thresholded_softmax(inp, threshold=-np.inf, eps=1e-12):
     """A softmax variant which masks out inputs below a certain threshold.
 
     For the normal softmax operation, all outputs will be greater than

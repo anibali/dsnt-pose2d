@@ -29,6 +29,15 @@ class HumanPoseModel(nn.Module):
             x = nn.functional.softmax(x)
         elif preact == 'thresholded_softmax':
             x = thresholded_softmax(x, -0.5)
+        elif preact == 'abs':
+            x = x.abs()
+            x = x / (x.sum(-1, keepdim=True) + 1e-12)
+        elif preact == 'relu':
+            x = nn.functional.relu(x, inplace=False)
+            x = x / (x.sum(-1, keepdim=True) + 1e-12)
+        elif preact == 'sigmoid':
+            x = nn.functional.sigmoid(x)
+            x = x / (x.sum(-1, keepdim=True) + 1e-12)
         else:
             raise Exception('unrecognised heatmap preactivation function: {}'.format(preact))
         x = x.view(-1, n_chans, height, width)

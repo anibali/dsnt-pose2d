@@ -35,8 +35,8 @@ def parse_args():
     """Parse command-line arguments."""
 
     parser = argparse.ArgumentParser(description='DSNT human pose model trainer')
-    parser.add_argument('--epochs', type=int, default=200, metavar='N',
-                        help='number of epochs to train (default=200)')
+    parser.add_argument('--epochs', type=int, default=120, metavar='N',
+                        help='number of epochs to train (default=120)')
     parser.add_argument('--batch-size', type=int, default=32, metavar='N',
                         help='input batch size (default=32)')
     parser.add_argument('--showoff', type=str, default='showoff:3000', metavar='HOST:PORT',
@@ -55,7 +55,7 @@ def parse_args():
                         choices=['dsnt', 'gauss', 'fc'],
                         help='strategy for outputting coordinates (default="dsnt")')
     parser.add_argument('--preact', type=str, default='softmax', metavar='S',
-                        choices=['softmax', 'thresholded_softmax'],
+                        choices=['softmax', 'thresholded_softmax', 'abs', 'relu', 'sigmoid'],
                         help='heatmap preactivation function (default="softmax")')
     parser.add_argument('--lr', type=float, metavar='LR',
                         help='initial learning rate')
