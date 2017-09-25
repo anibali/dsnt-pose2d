@@ -18,10 +18,7 @@ Using `--visualize` is optional.
 import argparse
 import random
 
-import progressbar
 import torch
-from torch.utils.data import DataLoader
-from torch.autograd import Variable
 import h5py
 import numpy as np
 
@@ -29,7 +26,7 @@ from dsnt.model import build_mpii_pose_model, ResNetHumanPoseModel
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
 import dsnt.gui
-from dsnt.util import type_as_index, reverse_tensor
+from dsnt.inference import generate_predictions, evaluate_mpii_predictions
 
 
 def parse_args():
@@ -79,89 +76,38 @@ def main():
 
     batch_size = 6
 
-    # Ground truth
-    annot_file = '/data/dlds/mpii-human-pose/annot-{}.h5'.format(subset)
-    with h5py.File(annot_file, 'r') as f:
-        actual = torch.from_numpy(f['part'][:])
-        head_lengths = torch.from_numpy(f['normalize'][:])
-    joint_mask = actual.select(2, 0).gt(1).mul(actual.select(2, 1).gt(1))
-
     model = None
-    if model_file:
+    if preds_file:
+        # Load predictions from file
+        with h5py.File(preds_file, 'r') as f:
+            preds = torch.from_numpy(f['preds'][:]).double()
+    elif model_file:
         # Generate predictions with the model
 
         model_state = torch.load(model_file)
-
         model = build_mpii_pose_model(**model_state['model_desc'])
         model.load_state_dict(model_state['state_dict'])
-        model.cuda()
-        model.eval()
+
+        print(model_state['model_desc'])
 
         use_flipped = True
         if args.disable_flip or not isinstance(model, ResNetHumanPoseModel):
             use_flipped = False
 
-        print('Using flip augmentations? {}'.format(use_flipped))
+        print('Use flip augmentations: {}'.format(use_flipped))
 
         dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset,
-            use_aug=False, image_specs=model.image_specs)
-        loader = DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
-        preds = torch.DoubleTensor(len(dataset), 16, 2).zero_()
+                              use_aug=False, image_specs=model.image_specs)
 
-        completed = 0
-        with progressbar.ProgressBar(max_value=len(dataset)) as bar:
-            for i, batch in enumerate(loader):
-                batch_size = batch['input'].size(0)
-
-                if use_flipped:
-                    # Normal
-                    in_var = Variable(batch['input'].cuda(), volatile=True)
-                    hm_var = model.forward_part1(in_var)
-                    hm1 = Variable(hm_var.data.clone(), volatile=True)
-
-                    # Flipped
-                    in_var = Variable(reverse_tensor(batch['input'], -1).cuda(), volatile=True)
-                    hm_var = model.forward_part1(in_var)
-                    hm2 = reverse_tensor(hm_var, -1)
-                    hm2 = hm2.index_select(-3, type_as_index(MPIIDataset.HFLIP_INDICES, hm2))
-
-                    hm = (hm1 + hm2) / 2
-                    out_var = model.forward_part2(hm)
-                    coords = model.compute_coords(out_var)
-                    orig_preds = torch.baddbmm(
-                        batch['transform_b'],
-                        coords.double(),
-                        batch['transform_m'])
-                else:
-                    in_var = Variable(batch['input'].cuda(), volatile=True)
-                    out_var = model(in_var)
-                    coords = model.compute_coords(out_var)
-                    orig_preds = torch.baddbmm(
-                        batch['transform_b'],
-                        coords.double(),
-                        batch['transform_m'])
-
-                pos = i * batch_size
-                preds[pos:(pos + batch_size)] = orig_preds
-
-                completed += in_var.data.size(0)
-                bar.update(completed)
-
-        # Save predictions to file
-        if preds_file:
-            with h5py.File(preds_file, 'w') as f:
-                f.create_dataset('preds', data=preds.numpy())
-    elif preds_file:
-        # Load predictions from file
-        with h5py.File(preds_file, 'r') as f:
-            preds = torch.from_numpy(f['preds'][:])
+        preds = generate_predictions(model, dataset, use_flipped=use_flipped,
+                                     batch_size=batch_size)
     else:
         # We need to get predictions from somewhere!
         raise Exception('at least one of "--preds" and "--model" must be present')
 
     # Calculate PCKh accuracies
     evaluator = PCKhEvaluator()
-    evaluator.add(preds, actual, joint_mask, head_lengths)
+    evaluate_mpii_predictions(preds, subset, evaluator)
 
     # Print PCKh accuracies
     for meter_name in sorted(evaluator.meters.keys()):
@@ -171,6 +117,7 @@ def main():
 
     # Visualise predictions
     if visualize:
+        annot_file = '/data/dlds/mpii-human-pose/annot-{}.h5'.format(subset)
         dsnt.gui.run_gui(preds, annot_file, model)
 
 
