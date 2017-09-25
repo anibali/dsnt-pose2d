@@ -218,19 +218,24 @@ class HourglassHumanPoseModel(HumanPoseModel):
         raise Exception('invalid configuration')
 
     def compute_coords(self, out_var):
-        last_out_var = out_var[-1]
+        if isinstance(out_var, list):
+            out_var = out_var[-1]
 
         if self.output_strat == 'dsnt' or self.output_strat == 'fc':
-            return last_out_var.data.type(torch.FloatTensor)
+            return out_var.data.type(torch.FloatTensor)
         elif self.output_strat == 'gauss':
-            return util.decode_heatmaps(last_out_var.data.cpu())
+            return util.decode_heatmaps(out_var.data.cpu())
 
         raise Exception('invalid configuration')
 
-    def forward(self, *inputs):
-        x = inputs[0]
+    def forward_part1(self, x):
+        """Forward from images to unnormalized heatmaps"""
 
-        hg_outs = self.hg(x)
+        return self.hg(x)
+
+    def forward_part2(self, hg_outs):
+        """Forward from unnormalized heatmaps to output"""
+
         out = []
 
         if self.output_strat == 'gauss':
@@ -256,6 +261,13 @@ class HourglassHumanPoseModel(HumanPoseModel):
             raise Exception('invalid configuration')
 
         return out
+
+    def forward(self, *inputs):
+        x = inputs[0]
+        x = self.forward_part1(x)
+        x = self.forward_part2(x)
+
+        return x
 
 
 def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt', preact='softmax'):

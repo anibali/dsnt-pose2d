@@ -90,9 +90,7 @@ def main():
 
         print(model_state['model_desc'])
 
-        use_flipped = True
-        if args.disable_flip or not isinstance(model, ResNetHumanPoseModel):
-            use_flipped = False
+        use_flipped = not args.disable_flip
 
         print('Use flip augmentations: {}'.format(use_flipped))
 
