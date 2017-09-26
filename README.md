@@ -44,10 +44,10 @@ To building the Showoff Docker image:
 3. Wait. If using Showoff, you can monitor progress by going to
    [http://localhost:16676](http://localhost:16676).
 
-### Evaluation
+### Inference
 
-`bin/eval.py` may be used to generate predictions from trained models on the
+`bin/infer.py` may be used to generate predictions from trained models on the
 MPII dataset. The predictions can be written to HDF5 files compatible with
-[anewell's human pose demo repo](https://github.com/anewell/pose-hg-demo).
-This is especially useful for generating Matlab submission files which are
-compatible with the official MPII leaderboard.
+[eval-mpii-pose](https://github.com/anibali/eval-mpii-pose). This is especially
+useful for generating Matlab submission files which are compatible with the
+official MPII evaluation code.
