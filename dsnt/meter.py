@@ -50,6 +50,7 @@ class MedianValueMeter(Meter):
 
         median = np.median(data)
 
+        # Calculate median absolute deviation
         k = norm.ppf(0.75) # Assume data is normally distributed
         mad = np.median(np.fabs(data - median) / k)
 

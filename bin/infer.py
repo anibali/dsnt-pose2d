@@ -15,7 +15,7 @@ import h5py
 import numpy as np
 
 from dsnt.meter import MedianValueMeter
-from dsnt.model import build_mpii_pose_model, ResNetHumanPoseModel
+from dsnt.model import build_mpii_pose_model
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
 from dsnt.inference import generate_predictions, evaluate_mpii_predictions

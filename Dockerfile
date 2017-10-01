@@ -83,5 +83,8 @@ RUN pip install progressbar2
 # Install matplotlib
 RUN pip install matplotlib
 
+# Install tabulate
+RUN pip install tabulate
+
 # Set the default command to python3
 CMD ["python3"]

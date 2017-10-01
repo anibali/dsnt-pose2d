@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-servers=(crumb snootles droopy)
+servers=(crumb snootles droopy oola)
 
 # Sync files to servers
 for server in ${servers[@]}

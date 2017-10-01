@@ -16,10 +16,10 @@ import dsnt.model
 def main():
     '''Main conversion entrypoint function.'''
 
-    in_file = 'models/hg1.pth'
-    out_file = 'models/complete/hg-s1-b1.pth'
-    stacks = 1
+    stacks = 8
     blocks = 1
+    in_file = 'models/hg_s{}_b{}_best.pth'.format(stacks, blocks)
+    out_file = 'models/complete/hg-s{}-b{}.pth'.format(stacks, blocks)
 
     in_state = torch.load(in_file)
     model_desc = {

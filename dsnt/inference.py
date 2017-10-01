@@ -29,8 +29,7 @@ def generate_predictions(model, dataset, use_flipped=True, batch_size=1, time_me
             if use_flipped:
                 # Normal
                 in_var = Variable(batch['input'].cuda(), volatile=True)
-                with timer(sum_meter):
-                    hm_var = model.forward_part1(in_var)
+                hm_var = model.forward_part1(in_var)
                 if isinstance(hm_var, list):
                     hm_var = hm_var[-1]
                 hm1 = Variable(hm_var.data.clone(), volatile=True)
@@ -44,9 +43,8 @@ def generate_predictions(model, dataset, use_flipped=True, batch_size=1, time_me
                 hm2 = hm2.index_select(-3, type_as_index(MPIIDataset.HFLIP_INDICES, hm2))
 
                 hm = (hm1 + hm2) / 2
-                with timer(sum_meter):
-                    out_var = model.forward_part2(hm)
-                    coords = model.compute_coords(out_var)
+                out_var = model.forward_part2(hm)
+                coords = model.compute_coords(out_var)
                 orig_preds = torch.baddbmm(
                     batch['transform_b'],
                     coords.double(),
