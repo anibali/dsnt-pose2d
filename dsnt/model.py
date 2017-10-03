@@ -119,7 +119,7 @@ class ResNetHumanPoseModel(HumanPoseModel):
 
             # Apply a regularisation term relating to the shape of the heatmap.
             if self.gauss_reg:
-                target_variance = 1.0 ** 2
+                target_variance = (1 / 32.0) ** 2
                 reg_coeff = 1.0
 
                 # variance = E[x^2] - E[x]^2
