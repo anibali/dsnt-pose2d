@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument('--model', type=str, metavar='PATH',
                         help='model state file')
     parser.add_argument('--preds', type=str, metavar='PATH',
-                        help='predictions file (will be written to if model is specified)')
+                        help='predictions file')
     parser.add_argument('--subset', type=str, default='val', metavar='S',
                         help='data subset to evaluate on (default="val")')
     parser.add_argument('--disable-flip', action='store_true', default=False,
@@ -77,28 +77,25 @@ def main():
     batch_size = 6
 
     model = None
+    if model_file:
+        model_state = torch.load(model_file)
+        model = build_mpii_pose_model(**model_state['model_desc'])
+        model.load_state_dict(model_state['state_dict'])
+        model = model.cuda()
+        print(model_state['model_desc'])
+
     if preds_file:
         # Load predictions from file
         with h5py.File(preds_file, 'r') as f:
             preds = torch.from_numpy(f['preds'][:]).double()
-    elif model_file:
+    elif model:
         # Generate predictions with the model
-
-        model_state = torch.load(model_file)
-        model = build_mpii_pose_model(**model_state['model_desc'])
-        model.load_state_dict(model_state['state_dict'])
-
-        print(model_state['model_desc'])
-
         use_flipped = not args.disable_flip
-
         print('Use flip augmentations: {}'.format(use_flipped))
-
-        dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset,
-                              use_aug=False, image_specs=model.image_specs)
-
-        preds = generate_predictions(model, dataset, use_flipped=use_flipped,
-                                     batch_size=batch_size)
+        dataset = MPIIDataset(
+            '/data/dlds/mpii-human-pose', subset, use_aug=False, image_specs=model.image_specs)
+        preds = generate_predictions(
+            model, dataset, use_flipped=use_flipped, batch_size=batch_size)
     else:
         # We need to get predictions from somewhere!
         raise Exception('at least one of "--preds" and "--model" must be present')

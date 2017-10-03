@@ -13,6 +13,7 @@ from torch.autograd import Variable
 from PIL import ImageTk, Image
 from dsnt.util import draw_skeleton
 from dsnt.data import MPIIDataset
+from dsnt.evaluator import PCKhEvaluator
 
 
 class SortBy(Enum):
@@ -152,6 +153,8 @@ class PoseResultsFrame(tk.Frame):
     def on_press_show_heatmap(self):
         # TODO: Actually do this properly. We currently just show the head-top joint in a hacky way
 
+        joint_id = PCKhEvaluator.JOINT_NAMES.index(self.var_joint.get())
+
         index = self.ordering[self.cur_sample]
         img = Image.open(self.image_files[index])
 
@@ -171,7 +174,7 @@ class PoseResultsFrame(tk.Frame):
         self.model(Variable(img_tensor, volatile=True))
         heatmaps = self.model.heatmaps.data.cpu()
         heatmaps.div_(heatmaps.max())
-        hm_img = torchvision.transforms.ToPILImage()(heatmaps[0, 9:10])
+        hm_img = torchvision.transforms.ToPILImage()(heatmaps[0, joint_id:(joint_id + 1)])
         hm_img = hm_img.resize((round(size), round(size)), Image.NEAREST)
 
         width = self.image_panel.winfo_width()
@@ -207,10 +210,10 @@ class PoseResultsFrame(tk.Frame):
         lbl_skeleton.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
         self.var_skeleton = tk.StringVar()
         self.var_skeleton.set(self.SKELETON_PREDICTION)
-        option = tk.OptionMenu(toolbar, self.var_skeleton,
-                               self.SKELETON_NONE, self.SKELETON_TRUTH, self.SKELETON_PREDICTION,
-                               command=lambda event: self.update_image())
-        option.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+        opt_skeleton = tk.OptionMenu(
+            toolbar, self.var_skeleton, self.SKELETON_NONE, self.SKELETON_TRUTH,
+            self.SKELETON_PREDICTION, command=lambda event: self.update_image())
+        opt_skeleton.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
 
         self.var_crop_as_input = tk.IntVar()
         cb_crop = tk.Checkbutton(toolbar, text='Crop',
@@ -221,6 +224,15 @@ class PoseResultsFrame(tk.Frame):
         btn_save = tk.Button(toolbar, text='Save image',
                              command=self.on_press_save_image)
         btn_save.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+
+        lbl_joint = tk.Label(toolbar, text='Heatmap joint:')
+        lbl_joint.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+        self.var_joint = tk.StringVar()
+        self.var_joint.set(PCKhEvaluator.JOINT_NAMES[0])
+        opt_joint = tk.OptionMenu(
+            toolbar, self.var_joint, *PCKhEvaluator.JOINT_NAMES,
+            command=lambda event: self.update_image())
+        opt_joint.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
 
         btn_heatmap = tk.Button(toolbar, text='Show heatmap',
                              command=self.on_press_show_heatmap)
@@ -249,7 +261,7 @@ def run_gui(preds, annot_file, model=None):
     root = tk.Tk()
     root.geometry("1280x720+0+0")
     app = PoseResultsFrame(
-        image_dir, SortBy.ACCURACY, preds, annot_file, model)
+        image_dir, SortBy.ID, preds, annot_file, model)
 
     root.update()
     app.update_image()

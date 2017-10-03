@@ -5,6 +5,7 @@ Human pose metric evaluation code.
 import torch
 from torchnet.meter import AverageValueMeter
 
+
 class PCKhEvaluator:
     '''Class for calculating and accumulating PCKh values.'''
 
