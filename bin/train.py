@@ -57,6 +57,8 @@ def parse_args():
     parser.add_argument('--preact', type=str, default='softmax', metavar='S',
                         choices=['softmax', 'thresholded_softmax', 'abs', 'relu', 'sigmoid'],
                         help='heatmap preactivation function (default="softmax")')
+    parser.add_argument('--gauss-reg', action='store_true', default=False,
+                        help='use gaussian KL divergence regulariser')
     parser.add_argument('--lr', type=float, metavar='LR',
                         help='initial learning rate')
     parser.add_argument('--schedule-milestones', type=int, nargs='+',
@@ -196,6 +198,7 @@ def main():
         'truncate': truncate,
         'output_strat': args.output_strat,
         'preact': args.preact,
+        'gauss_reg': args.gauss_reg,
     }
     model = build_mpii_pose_model(**model_desc)
     model.cuda()

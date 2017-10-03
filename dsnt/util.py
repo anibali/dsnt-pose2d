@@ -123,6 +123,7 @@ def draw_gaussian(img_tensor, x, y, sigma, normalize=False, clip_size=None):
         if val_sum > 0:
             subimg.div_(val_sum)
 
+
 def encode_heatmaps(coords, width, height):
     '''Convert normalised coordinates into heatmaps.'''
 

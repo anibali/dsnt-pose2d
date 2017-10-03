@@ -87,6 +87,36 @@ class DSNT(nn.Module):
         return output.view(output_size)
 
 
+def dsnt(input, square_coords=False):
+    *first_dims, height, width = input.size()
+
+    first_x = -(width - 1) / width
+    first_y = -(height - 1) / height
+    last_x = (width - 1) / width
+    last_y = (height - 1) / height
+
+    sing_dims = [1] * len(first_dims)
+    xs = torch.linspace(first_x, last_x, width).view(*sing_dims, 1, width)
+    ys = torch.linspace(first_y, last_y, height).view(*sing_dims, height, 1)
+
+    if isinstance(input, Variable):
+        xs = Variable(xs, requires_grad=False)
+        ys = Variable(ys, requires_grad=False)
+
+    xs = xs.type_as(input)
+    ys = ys.type_as(input)
+
+    if square_coords:
+        xs = xs ** 2
+        ys = ys ** 2
+
+    output_xs = (input * xs).view(*first_dims, height * width).sum(-1, keepdim=False)
+    output_ys = (input * ys).view(*first_dims, height * width).sum(-1, keepdim=False)
+    output = torch.stack([output_xs, output_ys], -1)
+
+    return output
+
+
 def euclidean_loss(actual, target, mask=None):
     """Calculate the average Euclidean loss for multi-point samples.
 

@@ -12,7 +12,7 @@ from torch.autograd import Variable
 from torch.utils import model_zoo
 from torchvision import models
 
-from dsnt.nn import DSNT, euclidean_loss, thresholded_softmax
+from dsnt.nn import dsnt, euclidean_loss, thresholded_softmax
 from dsnt import util, hourglass, minihg
 from dsnt.data import ImageSpecs
 
@@ -68,12 +68,13 @@ class ResNetHumanPoseModel(HumanPoseModel):
         output_strat (str): Strategy for going between heatmaps and coords (dsnt, fc, gauss)
     """
 
-    def __init__(self, resnet, n_chans=16, dilate=0, truncate=0, output_strat='dsnt', preact='softmax'):
+    def __init__(self, resnet, n_chans=16, dilate=0, truncate=0, output_strat='dsnt', preact='softmax', gauss_reg=False):
         super().__init__()
 
         self.n_chans = n_chans
         self.output_strat = output_strat
         self.preact = preact
+        self.gauss_reg = gauss_reg
 
         self.heatmap_size = 7 * 2 ** max(dilate, truncate)
 
@@ -105,9 +106,7 @@ class ResNetHumanPoseModel(HumanPoseModel):
             feats = resnet.fc.in_features
         self.hm_conv = nn.Conv2d(feats, self.n_chans, kernel_size=1, bias=False)
 
-        if self.output_strat == 'dsnt':
-            self.hm_dsnt = DSNT()
-        elif self.output_strat == 'fc':
+        if self.output_strat == 'fc':
             self.out_fc = nn.Linear(self.heatmap_size * self.heatmap_size, 2)
 
     @property
@@ -117,7 +116,28 @@ class ResNetHumanPoseModel(HumanPoseModel):
     def forward_loss(self, out_var, target_var, mask_var):
         if self.output_strat == 'dsnt' or self.output_strat == 'fc':
             loss = euclidean_loss(out_var, target_var, mask_var)
+
+            # Apply a regularisation term relating to the shape of the heatmap.
+            if self.gauss_reg:
+                target_variance = 1.0 ** 2
+                reg_coeff = 1.0
+
+                # variance = E[x^2] - E[x]^2
+                squared_mean = out_var ** 2
+                mean_x2 = dsnt(self.heatmaps, square_coords=True)
+                variance = mean_x2 - squared_mean
+
+                # reg_loss = mean((variance - target_variance)^2)
+                diff = variance - target_variance
+                if mask_var is not None:
+                    diff = diff * mask_var.unsqueeze(-1)
+                reg_loss = (diff ** 2).sum() / diff.nelement()
+
+                loss = loss + reg_coeff * reg_loss
+
             return loss
+        elif self.output_strat == 'fc':
+            return euclidean_loss(out_var, target_var, mask_var)
         elif self.output_strat == 'gauss':
             norm_coords = target_var.data.cpu()
             width = out_var.size(-1)
@@ -152,7 +172,7 @@ class ResNetHumanPoseModel(HumanPoseModel):
         if self.output_strat == 'dsnt':
             x = self._hm_preact(x, self.preact)
             self.heatmaps = x
-            x = self.hm_dsnt(x)
+            x = dsnt(x)
         elif self.output_strat == 'fc':
             x = self._hm_preact(x, self.preact)
             self.heatmaps = x
@@ -187,9 +207,7 @@ class HourglassHumanPoseModel(HumanPoseModel):
         except AttributeError:
             self.heatmap_size = 64
 
-        if self.output_strat == 'dsnt':
-            self.hm_dsnt = DSNT()
-        elif self.output_strat == 'fc':
+        if self.output_strat == 'fc':
             self.out_fc = nn.Linear(self.heatmap_size * self.heatmap_size, 2)
 
     @property
@@ -245,7 +263,7 @@ class HourglassHumanPoseModel(HumanPoseModel):
             for x in hg_outs:
                 x = self._hm_preact(x, self.preact)
                 self.heatmaps = x
-                x = self.hm_dsnt(x)
+                x = dsnt(x)
                 out.append(x)
         elif self.output_strat == 'fc':
             for x in hg_outs:
@@ -270,7 +288,7 @@ class HourglassHumanPoseModel(HumanPoseModel):
         return x
 
 
-def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt', preact='softmax'):
+def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt', preact='softmax', gauss_reg=False):
     """Create a ResNet-based pose estimation model with pretrained parameters.
 
         Args:
@@ -304,7 +322,7 @@ def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt', pr
 
     model = ResNetHumanPoseModel(
         resnet, n_chans=16, dilate=dilate, truncate=truncate, output_strat=output_strat,
-        preact=preact)
+        preact=preact, gauss_reg=gauss_reg)
     return model
 
 
