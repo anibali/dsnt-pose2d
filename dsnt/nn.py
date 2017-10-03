@@ -1,9 +1,13 @@
 """
 Custom reusable nn modules.
 """
+
+from functools import reduce
+from operator import mul
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional
 from torch.autograd import Variable, Function
 
 
@@ -117,6 +121,22 @@ def dsnt(input, square_coords=False):
     return output
 
 
+def _avg_losses(losses, mask=None):
+    if mask is not None:
+        losses = losses * mask
+        denom = mask.sum()
+    else:
+        denom = losses.numel()
+
+    # Prevent division by zero
+    if isinstance(denom, int):
+        denom = max(denom, 1)
+    else:
+        denom = denom.clamp(1)
+
+    return losses.sum() / denom
+
+
 def euclidean_loss(actual, target, mask=None):
     """Calculate the average Euclidean loss for multi-point samples.
 
@@ -130,14 +150,6 @@ def euclidean_loss(actual, target, mask=None):
         mask (Tensor, optional): Mask of points to include in the loss calculation
             ([batches x] n), defaults to including everything
     """
-    if actual.dim() == 2:
-        batch_size = 1
-    elif actual.dim() == 3:
-        batch_size = actual.size(0)
-    else:
-        raise Exception('euclidean_loss expects 2D or 3D input')
-
-    n_chans = actual.size(-2)
 
     # Calculate Euclidean distances between actual and target locations
     diff = actual - target
@@ -145,14 +157,7 @@ def euclidean_loss(actual, target, mask=None):
     dist_sq = diff_sq.sum(actual.dim() - 1)
     dist = dist_sq.sqrt()
 
-    # Apply mask to distances
-    if mask is not None:
-        dist = dist * mask
-
-    # Divide loss to make it independent of batch size
-    loss = dist.sum() / (batch_size * n_chans)
-
-    return loss
+    return _avg_losses(dist, mask)
 
 
 class ThresholdedSoftmax(Function):
@@ -198,3 +203,65 @@ def thresholded_softmax(inp, threshold=-np.inf, eps=1e-12):
     """
 
     return ThresholdedSoftmax.apply(inp, threshold, eps)
+
+
+def make_gauss(coords, width, height, sigma):
+    first_x = -(width - 1) / width
+    first_y = -(height - 1) / height
+    last_x = (width - 1) / width
+    last_y = (height - 1) / height
+
+    sing_dims = [1] * (coords.dim() - 1)
+    xs = torch.linspace(first_x, last_x, width).view(*sing_dims, 1, width).expand(*sing_dims, height, width)
+    ys = torch.linspace(first_y, last_y, height).view(*sing_dims, height, 1).expand(*sing_dims, height, width)
+
+    if isinstance(coords, Variable):
+        xs = Variable(xs, requires_grad=False)
+        ys = Variable(ys, requires_grad=False)
+
+    xs = xs.type_as(coords)
+    ys = ys.type_as(coords)
+
+    k = -0.5 * (1 / sigma)**2
+    xs = (xs - coords.narrow(-1, 0, 1).unsqueeze(-1)) ** 2
+    ys = (ys - coords.narrow(-1, 1, 1).unsqueeze(-1)) ** 2
+    gauss = ((xs + ys) * k).exp()
+
+    # Normalize the Gaussians
+    val_sum = gauss.sum(-1, keepdim=True).sum(-2, keepdim=True) + 1e-24
+    gauss = gauss / val_sum
+
+    return gauss
+
+
+def _kl_2d(p, q, eps=1e-24):
+    unsummed_kl = p * ((p + eps).log() - (q + eps).log())
+    kl_values = unsummed_kl.sum(-1, keepdim=False).sum(-1, keepdim=False)
+    return kl_values
+
+
+def _js_2d(p, q, eps=1e-24):
+    m = 0.5 * (p + q)
+    return 0.5 * _kl_2d(p, m, eps) + 0.5 * _kl_2d(q, m, eps)
+
+
+def kl_gauss_2d(inp, coords, mask=None, sigma=1):
+    gauss = make_gauss(coords, inp.size(-1), inp.size(-2), sigma)
+    kls = _kl_2d(inp, gauss)
+
+    return _avg_losses(kls, mask)
+
+
+def js_gauss_2d(inp, coords, mask=None, sigma=1):
+    gauss = make_gauss(coords, inp.size(-1), inp.size(-2), sigma)
+    kls = _js_2d(inp, gauss)
+
+    return _avg_losses(kls, mask)
+
+
+def mse_gauss_2d(inp, coords, mask=None, sigma=1):
+    gauss = make_gauss(coords, inp.size(-1), inp.size(-2), sigma)
+    sq_error = (inp - gauss) ** 2
+    sq_error_sum = sq_error.sum(-1, keepdim=False).sum(-1, keepdim=False)
+
+    return _avg_losses(sq_error_sum, mask)

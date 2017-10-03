@@ -12,7 +12,8 @@ from torch.autograd import Variable
 from torch.utils import model_zoo
 from torchvision import models
 
-from dsnt.nn import dsnt, euclidean_loss, thresholded_softmax
+import dsnt.nn
+from dsnt.nn import euclidean_loss, thresholded_softmax
 from dsnt import util, hourglass, minihg
 from dsnt.data import ImageSpecs
 
@@ -127,7 +128,7 @@ class ResNetHumanPoseModel(HumanPoseModel):
 
                 # variance = E[x^2] - E[x]^2
                 squared_mean = out_var ** 2
-                mean_x2 = dsnt(self.heatmaps, square_coords=True)
+                mean_x2 = dsnt.nn.dsnt(self.heatmaps, square_coords=True)
                 variance = mean_x2 - squared_mean
 
                 # reg_loss = mean((variance - target_variance)^2)
@@ -135,6 +136,12 @@ class ResNetHumanPoseModel(HumanPoseModel):
                 if mask_var is not None:
                     diff = diff * mask_var.unsqueeze(-1)
                 reg_loss = (diff ** 2).sum() / diff.nelement()
+            elif self.reg == 'kl':
+                reg_loss = dsnt.nn.kl_gauss_2d(self.heatmaps, target_var, mask_var, self.hm_sigma)
+            elif self.reg == 'js':
+                reg_loss = dsnt.nn.js_gauss_2d(self.heatmaps, target_var, mask_var, self.hm_sigma)
+            elif self.reg == 'mse':
+                reg_loss = dsnt.nn.mse_gauss_2d(self.heatmaps, target_var, mask_var, self.hm_sigma)
             else:
                 reg_loss = 0
 
@@ -175,7 +182,7 @@ class ResNetHumanPoseModel(HumanPoseModel):
         if self.output_strat == 'dsnt':
             x = self._hm_preact(x, self.preact)
             self.heatmaps = x
-            x = dsnt(x)
+            x = dsnt.nn.dsnt(x)
         elif self.output_strat == 'fc':
             x = self._hm_preact(x, self.preact)
             self.heatmaps = x
@@ -268,7 +275,7 @@ class HourglassHumanPoseModel(HumanPoseModel):
             for x in hg_outs:
                 x = self._hm_preact(x, self.preact)
                 self.heatmaps = x
-                x = dsnt(x)
+                x = dsnt.nn.dsnt(x)
                 out.append(x)
         elif self.output_strat == 'fc':
             for x in hg_outs:

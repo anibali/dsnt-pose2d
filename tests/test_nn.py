@@ -2,7 +2,8 @@ import torch
 from torch.autograd import Variable, gradcheck
 from tests.common import TestCase
 
-from dsnt.nn import DSNT, dsnt, euclidean_loss, thresholded_softmax
+from dsnt.nn import DSNT, dsnt, euclidean_loss, thresholded_softmax, kl_gauss_2d, mse_gauss_2d,\
+    js_gauss_2d
 
 
 class TestDSNT(TestCase):
@@ -243,3 +244,91 @@ class TestThresholdedSoftmax(TestCase):
         in_var = Variable(torch.randn(3, 20), requires_grad=True)
         threshold = 0
         self.assertTrue(gradcheck(thresholded_softmax, (in_var, threshold)))
+
+
+class TestKLGaussLoss(TestCase):
+    def test_kl_gauss_2d(self):
+        t = torch.Tensor([
+            [
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.1],
+                [0.0, 0.0, 0.1, 0.8],
+            ],
+            [
+                [0.8, 0.1, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+            ]
+        ])
+        coords = torch.Tensor([[1, 1], [-1, -1]])
+
+        self.assertEqual(1.2228811717796824, kl_gauss_2d(t, coords, sigma=1))
+        self.assertEqual(1.2228811717796824, kl_gauss_2d(t[0], coords[0], sigma=1))
+
+    def test_mask(self):
+        t = torch.Tensor([
+            [
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.1],
+                [0.0, 0.0, 0.1, 0.8],
+            ],
+            [
+                [0.8, 0.1, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+            ]
+        ])
+        coords = torch.Tensor([[1, 1], [0, 0]])
+        mask = torch.Tensor([1, 0])
+
+        actual = kl_gauss_2d(Variable(t), Variable(coords), Variable(mask), sigma=1)
+
+        self.assertEqual(1.2228811717796824, actual.data[0])
+
+
+class TestMSEGaussLoss(TestCase):
+    def test_mse_gauss_2d(self):
+        t = torch.Tensor([
+            [
+                [0.0081, 0.0172, 0.0284, 0.0364],
+                [0.0172, 0.0364, 0.0601, 0.0772],
+                [0.0284, 0.0601, 0.0991, 0.1272],
+                [0.0364, 0.0772, 0.1272, 0.1633],
+            ],
+            [
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.1],
+                [0.0, 0.0, 0.1, 0.2],
+                [0.0, 0.1, 0.2, 0.3],
+            ]
+        ])
+        coords = torch.Tensor([[1, 1], [1, 1]])
+
+        self.assertEqual(0.021896807803733806, mse_gauss_2d(t, coords, sigma=1))
+        self.assertEqual(0, mse_gauss_2d(t[0], coords[0], sigma=1))
+
+
+class TestJSGaussLoss(TestCase):
+    def test_js_gauss_2d(self):
+        t = torch.Tensor([
+            [
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.1],
+                [0.0, 0.0, 0.1, 0.8],
+            ],
+            [
+                [0.8, 0.1, 0.0, 0.0],
+                [0.1, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0],
+            ]
+        ])
+        coords = torch.Tensor([[1, 1], [-1, -1]])
+
+        self.assertEqual(0.3180417843094644, js_gauss_2d(t, coords, sigma=1))
+        self.assertEqual(0.3180417843094644, js_gauss_2d(t[0], coords[0], sigma=1))

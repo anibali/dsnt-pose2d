@@ -22,6 +22,7 @@ import torchnet.meter
 import tele
 import tele.meter
 import numpy as np
+from torchvision.transforms import ToPILImage
 
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
@@ -57,7 +58,7 @@ def parse_args():
                         choices=['softmax', 'thresholded_softmax', 'abs', 'relu', 'sigmoid'],
                         help='heatmap preactivation function (default="softmax")')
     parser.add_argument('--reg', type=str, default='none',
-                        choices=['none', 'stddev'],
+                        choices=['none', 'stddev', 'js', 'kl', 'mse'],
                         help='set the regularizer (default="none")')
     parser.add_argument('--reg-coeff', type=float, default=1.0,
                         help='coefficient for controlling regularization strength')
@@ -90,16 +91,18 @@ def parse_args():
 
     return args
 
+
 def seed_random_number_generators(seed):
-    'Seed all random number generators.'
+    """Seed all random number generators."""
 
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-class Reporting():
-    'Helper class for setting up metric reporting outputs.'
+
+class Reporting:
+    """Helper class for setting up metric reporting outputs."""
 
     def __init__(self, train_eval, val_eval):
         self.telemetry = tele.Telemetry({
@@ -115,8 +118,10 @@ class Reporting():
             'train_backward_time': torchnet.meter.AverageValueMeter(),
             'train_optim_time': torchnet.meter.AverageValueMeter(),
             'train_eval_time': torchnet.meter.AverageValueMeter(),
-            'val_sample': tele.meter.ValueMeter(),
             'train_sample': tele.meter.ValueMeter(),
+            'val_sample': tele.meter.ValueMeter(),
+            'train_heatmaps': tele.meter.ValueMeter(),
+            'val_heatmaps': tele.meter.ValueMeter(),
             'args': tele.meter.ValueMeter(skip_reset=True),
             'train_pckh_total': train_eval.meters['total_mpii'],
             'val_pckh_total': val_eval.meters['total_mpii'],
@@ -128,7 +133,7 @@ class Reporting():
         })
 
     def setup_console_output(self):
-        'Setup stdout reporting output.'
+        """Setup stdout reporting output."""
 
         from tele.console import views
         meters_to_print = [
@@ -139,7 +144,7 @@ class Reporting():
         ])
 
     def setup_folder_output(self, out_dir):
-        'Setup file system reporting output.'
+        """Setup file system reporting output."""
 
         from tele.folder import views
 
@@ -151,7 +156,7 @@ class Reporting():
         ])
 
     def setup_showoff_output(self, notebook):
-        'Setup Showoff reporting output.'
+        """Setup Showoff reporting output."""
 
         from tele.showoff import views
 
@@ -169,11 +174,14 @@ class Reporting():
             views.LineGraph(['train_data_load_time', 'train_data_transfer_time',
                 'train_forward_time', 'train_criterion_time',
                 'train_backward_time', 'train_optim_time', 'train_eval_time'],
-                'Training time breakdown')
+                'Training time breakdown'),
+            views.Images(['train_heatmaps'], 'Training wrist heatmaps', images_per_row=2),
+            views.Images(['val_heatmaps'], 'Validation wrist heatmaps', images_per_row=2),
         ])
 
+
 def main():
-    'Main training entrypoint function.'
+    """Main training entrypoint function."""
 
     args = parse_args()
     seed_random_number_generators(args.seed)
@@ -191,6 +199,8 @@ def main():
 
     experiment_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S%f')
     exp_out_dir = os.path.join(out_dir, experiment_id) if out_dir else None
+
+    print('Experiment ID: {}'.format(experiment_id))
 
     ####
     # Model
@@ -231,7 +241,7 @@ def main():
     val_eval = PCKhEvaluator()
 
     def eval_metrics_for_batch(evaluator, batch, norm_out):
-        'Evaluate and accumulate performance metrics for batch.'
+        """Evaluate and accumulate performance metrics for batch."""
 
         norm_out = norm_out.type(torch.DoubleTensor)
 
@@ -300,7 +310,8 @@ def main():
     else:
         raise Exception('unrecognised optimizer: {}'.format(args.optim))
 
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=schedule_milestones, gamma=schedule_gamma)
+    scheduler = lr_scheduler.MultiStepLR(
+        optimizer, milestones=schedule_milestones, gamma=schedule_gamma)
 
     # `vis` will hold a few samples for visualisation
     vis = {}
@@ -310,7 +321,7 @@ def main():
     ####
 
     def train(epoch):
-        '''Do a full pass over the training set, updating model parameters.'''
+        """Do a full pass over the training set, updating model parameters."""
 
         model.train()
         scheduler.step(epoch)
@@ -327,7 +338,20 @@ def main():
 
             with timer(tel['train_criterion_time']):
                 loss = model.forward_loss(out_var, target_var, mask_var)
-                assert not np.isnan(loss.data[0]), 'training loss should not be nan'
+
+                if np.isnan(loss.data[0]):
+                    state = {
+                        'state_dict': model.state_dict(),
+                        'model_desc': model_desc,
+                        'optimizer': optimizer.state_dict(),
+                        'epoch': epoch,
+                        'input': in_var.data,
+                        'target': target_var.data,
+                        'mask': mask_var.data,
+                    }
+                    torch.save(state, 'model_dump.pth')
+                    raise Exception('training loss should not be nan')
+
                 tel['train_loss'].add(loss.data[0])
 
             with timer(tel['train_eval_time']):
@@ -348,6 +372,7 @@ def main():
                 vis['train_preds'] = coords
                 vis['train_masks'] = batch['part_mask']
                 vis['train_coords'] = batch['part_coords']
+                vis['train_heatmaps'] = model.heatmaps.data.cpu()
 
             if progress_frame is not None:
                 progress_frame.progress(
@@ -385,6 +410,7 @@ def main():
                 vis['val_preds'] = coords
                 vis['val_masks'] = batch['part_mask']
                 vis['val_coords'] = batch['part_coords']
+                vis['val_heatmaps'] = model.heatmaps.data.cpu()
 
         tel['val_preds'].set_value(val_preds.numpy())
 
@@ -411,6 +437,20 @@ def main():
             val_sample.append(img)
         tel['val_sample'].set_value(val_sample)
 
+        def visualise_heatmaps(key):
+            heatmap_images = []
+            for i in range(min(16, vis[key].size(0))):
+                lwrist_hm = vis[key][i, PCKhEvaluator.JOINT_NAMES.index('lwrist')]
+                rwrist_hm = vis[key][i, PCKhEvaluator.JOINT_NAMES.index('rwrist')]
+                lwrist_hm = (lwrist_hm / lwrist_hm.max()).clamp_(0, 1)
+                rwrist_hm = (rwrist_hm / rwrist_hm.max()).clamp_(0, 1)
+                img = ToPILImage()(torch.stack([rwrist_hm, lwrist_hm.clone().zero_(), lwrist_hm], 0))
+                heatmap_images.append(img)
+            tel[key].set_value(heatmap_images)
+
+        visualise_heatmaps('train_heatmaps')
+        visualise_heatmaps('val_heatmaps')
+
         val_acc = val_eval.meters['total_mpii'].value()[0]
         is_best = best_val_acc_meter.add(val_acc)
 
@@ -431,6 +471,7 @@ def main():
         tel.step()
         train_eval.reset()
         val_eval.reset()
+
 
 if __name__ == '__main__':
     main()
