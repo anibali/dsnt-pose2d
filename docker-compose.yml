@@ -5,6 +5,7 @@ services:
     volumes:
       - .:/app
       - /data:/data:ro
+      - /fastdata:/fastdata:ro
       - /etc/localtime:/etc/localtime:ro
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /etc/hostname:/etc/hostname:ro

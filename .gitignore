@@ -16,3 +16,4 @@ core
 /results/
 .vscode
 .idea
+nvidia-docker-compose.yml
