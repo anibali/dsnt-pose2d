@@ -3,9 +3,9 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import progressbar
 import h5py
+from tele.meter import SumMeter
 
 from dsnt.data import MPIIDataset
-from dsnt.meter import SumMeter
 from dsnt.util import timer, type_as_index, reverse_tensor
 
 

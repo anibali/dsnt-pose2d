@@ -13,8 +13,8 @@ import time
 import torch
 import h5py
 import numpy as np
+from tele.meter import MedianValueMeter
 
-from dsnt.meter import MedianValueMeter
 from dsnt.model import build_mpii_pose_model
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator

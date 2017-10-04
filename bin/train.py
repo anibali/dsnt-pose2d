@@ -28,7 +28,6 @@ from dsnt.evaluator import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
 from dsnt.visualize import make_dot
 from dsnt.util import draw_skeleton, timer, generator_timer
-from dsnt.meter import MaxValueMeter
 
 
 def parse_args():
@@ -279,7 +278,7 @@ def main():
     tel['model_graph'].set_value(make_dot(out_var, dict(model.named_parameters())))
     del dummy_data
 
-    best_val_acc_meter = MaxValueMeter(skip_reset=True)
+    best_val_acc_meter = tele.meter.MaxValueMeter(skip_reset=True)
 
     ####
     # Optimiser

@@ -75,7 +75,7 @@ RUN conda install -y --name pytorch-py36 graphviz=2.38.0 \
 RUN pip install graphviz
 
 # Install tele
-RUN pip install git+https://github.com/anibali/tele.git@7d89b788d1dd91524ceb931fa5cc2a73065a2c0f
+RUN pip install 'tele==0.1.0a4'
 
 # Install progressbar2
 RUN pip install progressbar2
