@@ -30,15 +30,12 @@ def generate_heatmaps(model, image_file, scale, center):
 
     # Calculate crop used for input
     cx, cy = center
-    cy += 15 * scale
-    s = scale * 1.25
-
-    size = s * 200
+    size = scale * 200
     crop_box = [cx - size / 2, cy - size / 2,
                 cx + size / 2, cy + size / 2]
     crop_box = [round(x) for x in crop_box]
     img = img.crop(crop_box)
-    img = img.resize((model.image_specs.size, model.image_specs.size))
+    img = img.resize((model.image_specs.size, model.image_specs.size), Image.BILINEAR)
 
     print('Running model on: {}'.format(image_file))
     img_tensor = model.image_specs.convert(img, MPIIDataset)
@@ -144,8 +141,6 @@ class PoseResultsFrame(tk.Frame):
             # Calculate crop used for input
             scale = self.scales[index]
             center = self.centers[index].clone()
-            center[1] += 15 * scale
-            scale *= 1.25
             size = scale * 200
 
             img = img.crop([center[0] - size / 2, center[1] - size / 2,
