@@ -80,17 +80,20 @@ def generate_experiment_aliases(notebook):
     if base_model == 'resnet34' and output_strat == 'dsnt' and dilate == '2':
         aliases.append('preact-{}-d{}-t{}'.format(preact, dilate, truncate))
 
-    if base_model =='resnet34' and preact == 'softmax':
+    if base_model == 'resnet34' and preact == 'softmax':
         aliases.append('outstrat-{}-d{}-t{}'.format(output_strat, dilate, truncate))
 
-    if output_strat == 'dsnt' and preact == 'softmax':
+    if base_model.startswith('resnet') and output_strat == 'dsnt' and preact == 'softmax':
         aliases.append('depth-{}-d{}-t{}'.format(base_model, dilate, truncate))
+
+    if base_model.startswith('hg'):
+        aliases.append('hourglass-{}-{}'.format(base_model, output_strat))
 
     return aliases
 
 
 def main():
-    notebook_ids = list(range(365, 395 + 1))
+    notebook_ids = list(range(365, 399 + 1)) + list(range(409, 413 + 1)) + [423, 424, 429]
     showoff_netloc = 'anibali-ltu.duckdns.org:16676'
 
     notebooks = fetch_details(showoff_netloc, notebook_ids)

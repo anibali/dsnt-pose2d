@@ -68,13 +68,16 @@ class ResNetHumanPoseModel(HumanPoseModel):
         output_strat (str): Strategy for going between heatmaps and coords (dsnt, fc, gauss)
     """
 
-    def __init__(self, resnet, n_chans=16, dilate=0, truncate=0, output_strat='dsnt', preact='softmax', gauss_reg=False):
+    def __init__(self, resnet, n_chans=16, dilate=0, truncate=0, output_strat='dsnt',
+                 preact='softmax', reg='none', reg_coeff=1.0, hm_sigma=1.0):
         super().__init__()
 
         self.n_chans = n_chans
         self.output_strat = output_strat
         self.preact = preact
-        self.gauss_reg = gauss_reg
+        self.reg = reg
+        self.reg_coeff = reg_coeff
+        self.hm_sigma = hm_sigma
 
         self.heatmap_size = 7 * 2 ** max(dilate, truncate)
 
@@ -118,9 +121,9 @@ class ResNetHumanPoseModel(HumanPoseModel):
             loss = euclidean_loss(out_var, target_var, mask_var)
 
             # Apply a regularisation term relating to the shape of the heatmap.
-            if self.gauss_reg:
-                target_variance = (1 / 32.0) ** 2
-                reg_coeff = 1.0
+            if self.reg == 'stddev':
+                # Calculate normalized variance from pixel stddev
+                target_variance = (2.0 * self.hm_sigma / self.heatmap_size) ** 2
 
                 # variance = E[x^2] - E[x]^2
                 squared_mean = out_var ** 2
@@ -132,10 +135,10 @@ class ResNetHumanPoseModel(HumanPoseModel):
                 if mask_var is not None:
                     diff = diff * mask_var.unsqueeze(-1)
                 reg_loss = (diff ** 2).sum() / diff.nelement()
+            else:
+                reg_loss = 0
 
-                loss = loss + reg_coeff * reg_loss
-
-            return loss
+            return loss + self.reg_coeff * reg_loss
         elif self.output_strat == 'fc':
             return euclidean_loss(out_var, target_var, mask_var)
         elif self.output_strat == 'gauss':
@@ -143,7 +146,7 @@ class ResNetHumanPoseModel(HumanPoseModel):
             width = out_var.size(-1)
             height = out_var.size(-2)
 
-            target_hm = util.encode_heatmaps(norm_coords, width, height)
+            target_hm = util.encode_heatmaps(norm_coords, width, height, self.hm_sigma)
             target_hm_var = Variable(target_hm.cuda())
 
             loss = nn.functional.mse_loss(out_var, target_hm_var)
@@ -195,13 +198,15 @@ class ResNetHumanPoseModel(HumanPoseModel):
 
 
 class HourglassHumanPoseModel(HumanPoseModel):
-    def __init__(self, hg, n_chans=16, output_strat='gauss', preact='softmax'):
+    def __init__(self, hg, n_chans=16, output_strat='gauss', preact='softmax', hm_sigma=1.0):
         super().__init__()
 
         self.hg = hg
         self.n_chans = n_chans
         self.output_strat = output_strat
         self.preact = preact
+        self.hm_sigma = hm_sigma
+
         try:
             self.heatmap_size = hg.heatmap_size
         except AttributeError:
@@ -225,7 +230,7 @@ class HourglassHumanPoseModel(HumanPoseModel):
             width = out_var[0].size(-1)
             height = out_var[0].size(-2)
 
-            target_hm = util.encode_heatmaps(norm_coords, width, height)
+            target_hm = util.encode_heatmaps(norm_coords, width, height, self.hm_sigma)
             target_hm_var = Variable(target_hm.cuda())
 
             # Calculate and sum up intermediate losses
@@ -288,7 +293,8 @@ class HourglassHumanPoseModel(HumanPoseModel):
         return x
 
 
-def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt', preact='softmax', gauss_reg=False):
+def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt', preact='softmax',
+                             reg='none', reg_coeff=1.0, hm_sigma=1.0):
     """Create a ResNet-based pose estimation model with pretrained parameters.
 
         Args:
@@ -322,11 +328,12 @@ def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt', pr
 
     model = ResNetHumanPoseModel(
         resnet, n_chans=16, dilate=dilate, truncate=truncate, output_strat=output_strat,
-        preact=preact, gauss_reg=gauss_reg)
+        preact=preact, reg=reg, reg_coeff=reg_coeff, hm_sigma=hm_sigma)
     return model
 
 
-def _build_hg_model(base, stacks=2, blocks=1, output_strat='gauss', preact='softmax'):
+def _build_hg_model(base, stacks=2, blocks=1, output_strat='gauss', preact='softmax',
+                    hm_sigma=1.0):
     m = re.search('hg(\d+)', base)
 
     if m is not None:
@@ -338,11 +345,13 @@ def _build_hg_model(base, stacks=2, blocks=1, output_strat='gauss', preact='soft
 
     hg = hourglass.HourglassNet(hourglass.Bottleneck, num_stacks=stacks, num_blocks=blocks)
 
-    model = HourglassHumanPoseModel(hg, n_chans=16, output_strat=output_strat, preact=preact)
+    model = HourglassHumanPoseModel(hg, n_chans=16, output_strat=output_strat, preact=preact,
+                                    hm_sigma=hm_sigma)
     return model
 
 
-def _build_minihg_model(base, stacks=2, blocks=1, depth=3, output_strat='dsnt', preact='softmax'):
+def _build_minihg_model(base, stacks=2, blocks=1, depth=3, output_strat='dsnt', preact='softmax',
+                        hm_sigma=1.0):
     m = re.search('minihg(\d+)', base)
 
     if m is not None:
@@ -354,7 +363,8 @@ def _build_minihg_model(base, stacks=2, blocks=1, depth=3, output_strat='dsnt', 
 
     hg = minihg.MiniHourglassNet(depth=depth, num_stacks=stacks, num_blocks=blocks)
 
-    model = HourglassHumanPoseModel(hg, n_chans=16, output_strat=output_strat, preact=preact)
+    model = HourglassHumanPoseModel(hg, n_chans=16, output_strat=output_strat, preact=preact,
+                                    hm_sigma=hm_sigma)
     return model
 
 

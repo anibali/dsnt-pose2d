@@ -124,7 +124,7 @@ def draw_gaussian(img_tensor, x, y, sigma, normalize=False, clip_size=None):
             subimg.div_(val_sum)
 
 
-def encode_heatmaps(coords, width, height):
+def encode_heatmaps(coords, width, height, sigma=1):
     '''Convert normalised coordinates into heatmaps.'''
 
     # Normalised coordinates to pixel coordinates
@@ -140,7 +140,7 @@ def encode_heatmaps(coords, width, height):
         for j in range(n_chans):
             x = round(coords[i, j, 0])
             y = round(coords[i, j, 1])
-            draw_gaussian(target[i, j], x, y, 1, normalize=False, clip_size=7)
+            draw_gaussian(target[i, j], x, y, sigma, normalize=False, clip_size=7)
 
     return target
 

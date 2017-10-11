@@ -56,8 +56,13 @@ def parse_args():
     parser.add_argument('--preact', type=str, default='softmax', metavar='S',
                         choices=['softmax', 'thresholded_softmax', 'abs', 'relu', 'sigmoid'],
                         help='heatmap preactivation function (default="softmax")')
-    parser.add_argument('--gauss-reg', action='store_true', default=False,
-                        help='use gaussian KL divergence regulariser')
+    parser.add_argument('--reg', type=str, default='none',
+                        choices=['none', 'stddev'],
+                        help='set the regularizer (default="none")')
+    parser.add_argument('--reg-coeff', type=float, default=1.0,
+                        help='coefficient for controlling regularization strength')
+    parser.add_argument('--hm-sigma', type=float, default=1.0,
+                        help='target standard deviation for heatmap, in pixels')
     parser.add_argument('--lr', type=float, metavar='LR',
                         help='initial learning rate')
     parser.add_argument('--schedule-milestones', type=int, nargs='+',
@@ -197,7 +202,9 @@ def main():
         'truncate': truncate,
         'output_strat': args.output_strat,
         'preact': args.preact,
-        'gauss_reg': args.gauss_reg,
+        'reg': args.reg,
+        'reg_coeff': args.reg_coeff,
+        'hm_sigma': args.hm_sigma,
     }
     model = build_mpii_pose_model(**model_desc)
     model.cuda()
@@ -256,8 +263,9 @@ def main():
 
         client = pyshowoff.Client(args.showoff)
         notebook = client.new_notebook(
-            '[{}] Human pose ({}, strat={}, dilate={}, trunc={}, optim={}@{:.1e})'.format(
-                hostname, base_model, args.output_strat, dilate, truncate, args.optim, args.lr))
+            '[{}] Human pose ({}-d{}-t{}, {}, {}@{:.1e}, reg={})'.format(
+                hostname, base_model, dilate, truncate, args.output_strat, args.optim, args.lr,
+                args.reg))
 
         reporting.setup_showoff_output(notebook)
 
