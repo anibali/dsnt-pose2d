@@ -5,6 +5,7 @@ import tkinter.filedialog
 from enum import Enum
 import h5py
 import os
+from functools import lru_cache
 
 import numpy as np
 import torch
@@ -19,6 +20,47 @@ from dsnt.evaluator import PCKhEvaluator
 class SortBy(Enum):
     ID = 1
     ACCURACY = 2
+
+
+@lru_cache(maxsize=32)
+def generate_heatmaps(model, image_file, scale, center):
+    img = Image.open(image_file)
+    orig_width = img.width
+    orig_height = img.height
+
+    # Calculate crop used for input
+    cx, cy = center
+    cy += 15 * scale
+    s = scale * 1.25
+
+    size = s * 200
+    crop_box = [cx - size / 2, cy - size / 2,
+                cx + size / 2, cy + size / 2]
+    crop_box = [round(x) for x in crop_box]
+    img = img.crop(crop_box)
+    img = img.resize((model.image_specs.size, model.image_specs.size))
+
+    print('Running model on: {}'.format(image_file))
+    img_tensor = model.image_specs.convert(img, MPIIDataset)
+    img_tensor = img_tensor.unsqueeze(0).type(torch.cuda.FloatTensor)
+    model(Variable(img_tensor, volatile=True))
+    hms_tensor = model.heatmaps.data.cpu()[0]
+
+    heatmaps = []
+
+    for hm_tensor in hms_tensor.split(1, 0):
+        # Scale and clamp pixel values
+        hm_tensor.div_(hm_tensor.max()).clamp_(0, 1)
+        # Convert tensor to PIL Image
+        hm_img = torchvision.transforms.ToPILImage()(hm_tensor)
+        hm_img = hm_img.resize((round(size), round(size)), Image.NEAREST)
+        # "Uncrop" heatmap to match original image size
+        hm_padded = Image.new('RGB', (orig_width, orig_height), (0, 0, 0))
+        hm_padded.paste(hm_img, (crop_box[0], crop_box[1]))
+        # Add heatmap to list
+        heatmaps.append(hm_padded)
+
+    return heatmaps
 
 
 class PoseResultsFrame(tk.Frame):
@@ -60,8 +102,9 @@ class PoseResultsFrame(tk.Frame):
         else:
             self.ordering = list(range(preds.size(0)))
 
-        self.init_gui()
         self.savable_image = None
+
+        self.init_gui()
 
     @property
     def cur_sample(self):
@@ -79,10 +122,18 @@ class PoseResultsFrame(tk.Frame):
     def crop_as_input(self, value):
         self.var_crop_as_input.set(1 if value else 0)
 
+    @property
+    def show_heatmap(self):
+        return self.var_show_heatmap.get() == 1
+
     def update_image(self):
         index = self.ordering[self.cur_sample]
         self.var_index.set('Index: {:04d}'.format(index))
-        img = Image.open(self.image_files[index])
+
+        if self.show_heatmap:
+            img = self.get_joint_heatmap()
+        else:
+            img = Image.open(self.image_files[index])
 
         if self.var_skeleton.get() == self.SKELETON_TRUTH:
             draw_skeleton(img, self.actual[index], self.joint_mask[index])
@@ -150,39 +201,14 @@ class PoseResultsFrame(tk.Frame):
         if filename:
             self.savable_image.save(filename)
 
-    def on_press_show_heatmap(self):
-        # TODO: Actually do this properly. We currently just show the head-top joint in a hacky way
-
+    def get_joint_heatmap(self):
         joint_id = PCKhEvaluator.JOINT_NAMES.index(self.var_joint.get())
 
         index = self.ordering[self.cur_sample]
-        img = Image.open(self.image_files[index])
+        heatmaps = generate_heatmaps(
+            self.model, self.image_files[index], self.scales[index], tuple(self.centers[index]))
 
-        # Calculate crop used for input
-        scale = self.scales[index]
-        center = self.centers[index].clone()
-        center[1] += 15 * scale
-        scale *= 1.25
-        size = scale * 200
-
-        img = img.crop([center[0] - size / 2, center[1] - size / 2,
-                        center[0] + size / 2, center[1] + size / 2])
-        img = img.resize((self.model.image_specs.size, self.model.image_specs.size))
-
-        img_tensor = self.model.image_specs.convert(img, MPIIDataset)
-        img_tensor = img_tensor.unsqueeze(0).type(torch.cuda.FloatTensor)
-        self.model(Variable(img_tensor, volatile=True))
-        heatmaps = self.model.heatmaps.data.cpu()
-        heatmaps.div_(heatmaps.max())
-        hm_img = torchvision.transforms.ToPILImage()(heatmaps[0, joint_id:(joint_id + 1)])
-        hm_img = hm_img.resize((round(size), round(size)), Image.NEAREST)
-
-        width = self.image_panel.winfo_width()
-        height = self.image_panel.winfo_height() - 2
-        hm_img.thumbnail((width, height), Image.NEAREST)
-        tkimg = ImageTk.PhotoImage(hm_img)
-        self.image_panel.configure(image=tkimg)
-        self.image_panel.image = tkimg
+        return heatmaps[joint_id].copy()
 
     def init_gui(self):
         self.master.title('Pose estimation results explorer')
@@ -234,11 +260,13 @@ class PoseResultsFrame(tk.Frame):
             command=lambda event: self.update_image())
         opt_joint.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
 
-        btn_heatmap = tk.Button(toolbar, text='Show heatmap',
-                             command=self.on_press_show_heatmap)
-        btn_heatmap.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
+        self.var_show_heatmap = tk.IntVar()
+        cb_hm = tk.Checkbutton(toolbar, text='Show heatmap',
+                                 variable=self.var_show_heatmap,
+                                 command=self.update_image)
+        cb_hm.pack(side=tk.LEFT, fill=tk.Y, padx=2, pady=2)
         if self.model is None:
-            btn_heatmap['state'] = tk.DISABLED
+            cb_hm['state'] = tk.DISABLED
 
         toolbar.pack(side=tk.TOP, fill=tk.X)
 
