@@ -153,8 +153,7 @@ def euclidean_loss(actual, target, mask=None):
 
     # Calculate Euclidean distances between actual and target locations
     diff = actual - target
-    diff_sq = diff * diff
-    dist_sq = diff_sq.sum(actual.dim() - 1)
+    dist_sq = diff.pow(2).sum(-1, keepdim=False)
     dist = dist_sq.sqrt()
 
     return _avg_losses(dist, mask)

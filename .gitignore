@@ -14,6 +14,7 @@ core
 /models/
 /out/
 /results/
+/data/
 .vscode
 .idea
 nvidia-docker-compose.yml
