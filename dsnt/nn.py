@@ -206,6 +206,16 @@ def thresholded_softmax(inp, threshold=-np.inf, eps=1e-12):
 
 
 def make_gauss(coords, width, height, sigma):
+    """Draw 2D Gaussians.
+
+    This function is differential with respect to coords.
+
+    Args:
+        coords: coordinates containing the Gaussian means (units: normalized coordinates)
+        width: width of the generated images (units: pixels)
+        height: height of the generated images (units: pixels)
+        sigma: standard deviation of the Gaussian (units: normalized coordinates)
+    """
     first_x = -(width - 1) / width
     first_y = -(height - 1) / height
     last_x = (width - 1) / width

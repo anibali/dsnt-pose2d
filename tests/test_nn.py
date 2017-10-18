@@ -3,7 +3,7 @@ from torch.autograd import Variable, gradcheck
 from tests.common import TestCase
 
 from dsnt.nn import DSNT, dsnt, euclidean_loss, thresholded_softmax, kl_gauss_2d, mse_gauss_2d,\
-    js_gauss_2d
+    js_gauss_2d, make_gauss
 
 
 class TestDSNT(TestCase):
@@ -332,3 +332,16 @@ class TestJSGaussLoss(TestCase):
 
         self.assertEqual(0.3180417843094644, js_gauss_2d(t, coords, sigma=1))
         self.assertEqual(0.3180417843094644, js_gauss_2d(t[0], coords[0], sigma=1))
+
+
+class TestMakeGauss(TestCase):
+    def test_make_gauss(self):
+        expected = torch.Tensor([
+            [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
+            [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
+            [0.0219, 0.0983, 0.1621, 0.0983, 0.0219],
+            [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
+            [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
+        ])
+        actual = make_gauss(torch.Tensor([0, 0]), 5, 5, sigma=0.4)
+        self.assertEqual(expected, actual, 1e-4)

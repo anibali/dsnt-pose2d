@@ -121,10 +121,13 @@ class ResNetHumanPoseModel(HumanPoseModel):
         if self.output_strat == 'dsnt' or self.output_strat == 'fc':
             loss = euclidean_loss(out_var, target_var, mask_var)
 
+            # Convert sigma (aka standard deviation) from pixels to normalized units
+            sigma = (2.0 * self.hm_sigma / self.heatmap_size)
+
             # Apply a regularisation term relating to the shape of the heatmap.
             if self.reg == 'stddev':
                 # Calculate normalized variance from pixel stddev
-                target_variance = (2.0 * self.hm_sigma / self.heatmap_size) ** 2
+                target_variance = sigma ** 2
 
                 # variance = E[x^2] - E[x]^2
                 squared_mean = out_var ** 2
@@ -137,11 +140,11 @@ class ResNetHumanPoseModel(HumanPoseModel):
                     diff = diff * mask_var.unsqueeze(-1)
                 reg_loss = (diff ** 2).sum() / diff.nelement()
             elif self.reg == 'kl':
-                reg_loss = dsnt.nn.kl_gauss_2d(self.heatmaps, target_var, mask_var, self.hm_sigma)
+                reg_loss = dsnt.nn.kl_gauss_2d(self.heatmaps, target_var, mask_var, sigma)
             elif self.reg == 'js':
-                reg_loss = dsnt.nn.js_gauss_2d(self.heatmaps, target_var, mask_var, self.hm_sigma)
+                reg_loss = dsnt.nn.js_gauss_2d(self.heatmaps, target_var, mask_var, sigma)
             elif self.reg == 'mse':
-                reg_loss = dsnt.nn.mse_gauss_2d(self.heatmaps, target_var, mask_var, self.hm_sigma)
+                reg_loss = dsnt.nn.mse_gauss_2d(self.heatmaps, target_var, mask_var, sigma)
             else:
                 reg_loss = 0
 
