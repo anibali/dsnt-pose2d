@@ -43,6 +43,8 @@ def parse_args():
                         help='network location of the Showoff server (default="showoff:3000")')
     parser.add_argument('--no-aug', action='store_true', default=False,
                         help='disable training data augmentation')
+    parser.add_argument('--train-samples', type=int,
+                        help='maximum number of samples to use from the training set')
     parser.add_argument('--out-dir', type=str, default='out', metavar='PATH',
                         help='path to output directory (default="out")')
     parser.add_argument('--base-model', type=str, default='resnet34', metavar='BM',
@@ -72,6 +74,8 @@ def parse_args():
                         help='factor to multiply the LR by at each drop')
     parser.add_argument('--optim', type=str, default='rmsprop', metavar='S',
                         help='optimizer to use (default=rmsprop)')
+    parser.add_argument('--tags', type=str, nargs='+', default=[],
+                        help='keywords to tag this experiment with')
     parser.add_argument('--seed', type=int, metavar='N',
                         help='seed for random number generators')
 
@@ -226,7 +230,7 @@ def main():
     ####
 
     train_data = MPIIDataset('/data/dlds/mpii-human-pose', 'train',
-        use_aug=use_train_aug, image_specs=model.image_specs)
+        use_aug=use_train_aug, image_specs=model.image_specs, max_length=args.train_samples)
     train_loader = DataLoader(train_data, batch_size, num_workers=4, pin_memory=True, shuffle=True)
 
     val_data = MPIIDataset('/data/dlds/mpii-human-pose', 'val',
@@ -276,6 +280,9 @@ def main():
             '[{}] Human pose ({}-d{}-t{}, {}, {}@{:.1e}, reg={})'.format(
                 hostname, base_model, dilate, truncate, args.output_strat, args.optim, args.lr,
                 args.reg))
+
+        for tag_name in args.tags:
+            notebook.new_tag(tag_name)
 
         reporting.setup_showoff_output(notebook)
 

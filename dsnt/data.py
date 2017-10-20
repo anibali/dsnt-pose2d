@@ -106,7 +106,8 @@ class MPIIDataset(Dataset):
     MEAN = [0.440442830324173, 0.4440267086029053, 0.4326828420162201]
     STDDEV = [0.24576245248317719, 0.24096255004405975, 0.2468130737543106]
 
-    def __init__(self, data_dir, subset='train', use_aug=False, image_specs=ImageSpecs(224, False, False)):
+    def __init__(self, data_dir, subset='train', use_aug=False,
+                 image_specs=ImageSpecs(224, False, False), max_length=None):
         super().__init__()
 
         h5_file = path.join(data_dir, 'mpii-human-pose.h5')
@@ -115,7 +116,11 @@ class MPIIDataset(Dataset):
         self.use_aug = use_aug
         self.image_specs = image_specs
         with h5py_cache.File(h5_file, 'r', chunk_cache_mem_size=1024**3) as f:
-            self.length = f[subset]['images'].shape[0]
+            actual_length = f[subset]['images'].shape[0]
+            if max_length is not None and max_length < actual_length:
+                self.length = max_length
+            else:
+                self.length = actual_length
 
     def __len__(self):
         return self.length
