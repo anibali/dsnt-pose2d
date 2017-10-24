@@ -1,0 +1,24 @@
+{
+  "hosts": [
+    { "name": "crumb", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "snootles", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "oola", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "droopy", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" }
+  ],
+  "jobs": [
+    // # Different learning rates (to test hyperparameter robustness)
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=1.00e-5",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=3.16e-5",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=1.00e-4",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=3.16e-4",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=1.00e-3",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=3.16e-3",
+
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=1.00e-5",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=3.16e-5",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=1.00e-4",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=3.16e-4",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=1.00e-3",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=3.16e-3"
+  ]
+}

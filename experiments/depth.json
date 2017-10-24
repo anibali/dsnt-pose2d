@@ -1,0 +1,19 @@
+{
+  "hosts": [
+    { "name": "crumb", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "snootles", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "oola", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "droopy", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" }
+  ],
+  "jobs": [
+    // # Varying depths
+    "scripts/train.sh --tags depth --base-model=resnet18  --dilate=1 --reg=js",
+    "scripts/train.sh --tags depth --base-model=resnet18  --dilate=2 --reg=js",
+    "scripts/train.sh --tags depth --base-model=resnet34  --dilate=1 --reg=js",
+    "scripts/train.sh --tags depth --base-model=resnet34  --dilate=2 --reg=js",
+    "scripts/train.sh --tags depth --base-model=resnet50  --dilate=1 --reg=js",
+    "scripts/train.sh --tags depth --base-model=resnet50  --dilate=2 --reg=js",
+    "scripts/train.sh --tags depth --base-model=resnet101 --dilate=1 --reg=js",
+    "scripts/train.sh --tags depth --base-model=resnet101 --dilate=2 --reg=js"
+  ]
+}

@@ -42,11 +42,11 @@ def main():
 
     for exp_dir in sorted(exp_dirs):
         print(exp_dir)
-        model_file = os.path.join(exp_dir, 'model-best.pth')
+        model_file = os.path.join(exp_dir, 'model.pth')
         preds_file = os.path.join(exp_dir, 'infer-{}.h5'.format(subset))
         metrics_file = os.path.join(exp_dir, 'infer-{}-metrics.json'.format(subset))
         if not os.path.isfile(model_file):
-            print('cannot find model-best.pth')
+            print('cannot find model.pth')
             continue
         if os.path.isfile(preds_file):
             print('predictions found, skipping')

@@ -1,0 +1,16 @@
+{
+  "hosts": [
+    { "name": "crumb", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "snootles", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "oola", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "droopy", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" }
+  ],
+  "jobs": [
+    // # Varying heatmap preactivation functions
+//    "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=softmax",
+    "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=thresholded_softmax",
+    "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=abs",
+    "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=relu",
+    "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=sigmoid"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "hosts": [
+    { "name": "crumb", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "snootles", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "oola", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "droopy", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" }
+  ],
+  "jobs": [
+    // # "Baseline" (estimated best)
+    "scripts/train.sh --tags reg regstr regsize --base-model=resnet34 --dilate=2 --reg=js",
+    // # Varying regularizer
+    "scripts/train.sh --tags reg --base-model=resnet34 --dilate=2 --reg=stddev",
+    "scripts/train.sh --tags reg --base-model=resnet34 --dilate=2 --reg=kl",
+    "scripts/train.sh --tags reg --base-model=resnet34 --dilate=2 --reg=none",
+    // Varying regularization strength
+    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=0.2",
+    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=5.0",
+    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=10.0",
+    // Varying regularization size
+    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=0.5",
+    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=2.0",
+    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=4.0"
+  ]
+}
