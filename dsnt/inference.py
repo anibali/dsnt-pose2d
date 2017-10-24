@@ -72,7 +72,6 @@ def generate_predictions(model, dataset, use_flipped=True, batch_size=1, time_me
 
 
 def evaluate_mpii_predictions(preds, subset, evaluator):
-    # Might as well calculate accuracy while we're here
     actual_file = '/data/dlds/mpii-human-pose/annot-{}.h5'.format(subset)
     with h5py.File(actual_file, 'r') as f:
         actual = torch.from_numpy(f['part'][:])
