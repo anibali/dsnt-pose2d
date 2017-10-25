@@ -110,6 +110,8 @@ class MPIIDataset(Dataset):
                  image_specs=ImageSpecs(224, False, False), max_length=None):
         super().__init__()
 
+        self._skip_read_image = False
+
         h5_file = path.join(data_dir, 'mpii-human-pose.h5')
         self.h5_file = h5_file
         self.subset = subset
@@ -129,7 +131,10 @@ class MPIIDataset(Dataset):
         subset = self.subset
 
         with h5py_cache.File(self.h5_file, 'r', chunk_cache_mem_size=1024**3) as f:
-            raw_image = torch.from_numpy(f[subset]['images'][index])
+            if self._skip_read_image:
+                raw_image = None
+            else:
+                raw_image = torch.from_numpy(f[subset]['images'][index])
             trans_m = torch.from_numpy(f[subset]['transforms/m'][index]).double()
             trans_b = torch.from_numpy(f[subset]['transforms/b'][index]).double()
             normalize = f[subset]['normalize'][index]
@@ -210,30 +215,6 @@ class MPIIDataset(Dataset):
                 within_bounds, _ = part_coords.abs().lt(1).min(-1, keepdim=False)
                 part_mask.mul_(within_bounds)
 
-        ### Transform image ###
-
-        # I'm pretty unhappy about this. I prepared the input data into
-        # CxHxW layout because this is what Torch uses, but I have to convert
-        # to and from HxWxC using ToPILImage and ToTensor. Why aren't there
-        # image transforms available which operate on tensors directly?
-        trans = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.Lambda(lambda img: img.transpose(Image.FLIP_LEFT_RIGHT) if hflip else img),
-            transforms.Lambda(lambda img: img.rotate(rot, Image.BILINEAR) if rot != 0 else img),
-            transforms.CenterCrop(384 * scale),
-            transforms.ToTensor(),
-        ])
-        input_image = trans(raw_image)
-
-        # Colour augmentation
-        # * bearpaw/pytorch-pose uses uniform(0.8, 1.2)
-        # * anewell/pose-hg-train uses uniform(0.6, 1.4)
-        if self.use_aug:
-            for chan in range(input_image.size(0)):
-                input_image[chan].mul_(random.uniform(0.6, 1.4)).clamp_(0, 1)
-
-        input_image = self.image_specs.convert(input_image, self)
-
         ### Set up transforms for returning to original image coords ###
 
         # NOTE: Care has to be taken when converting from model output to original
@@ -247,6 +228,33 @@ class MPIIDataset(Dataset):
         s = torch.mm(u, torch.inverse(t))
         trans_m.copy_(s[0:2, 0:2])
         trans_b[0].copy_(s[0:2, 2])
+
+        ### Transform image ###
+
+        if raw_image is not None:
+            # I'm pretty unhappy about this. I prepared the input data into
+            # CxHxW layout because this is what Torch uses, but I have to convert
+            # to and from HxWxC using ToPILImage and ToTensor. Why aren't there
+            # image transforms available which operate on tensors directly?
+            trans = transforms.Compose([
+                transforms.ToPILImage(),
+                transforms.Lambda(lambda img: img.transpose(Image.FLIP_LEFT_RIGHT) if hflip else img),
+                transforms.Lambda(lambda img: img.rotate(rot, Image.BILINEAR) if rot != 0 else img),
+                transforms.CenterCrop(384 * scale),
+                transforms.ToTensor(),
+            ])
+            input_image = trans(raw_image)
+
+            # Colour augmentation
+            # * bearpaw/pytorch-pose uses uniform(0.8, 1.2)
+            # * anewell/pose-hg-train uses uniform(0.6, 1.4)
+            if self.use_aug:
+                for chan in range(input_image.size(0)):
+                    input_image[chan].mul_(random.uniform(0.6, 1.4)).clamp_(0, 1)
+
+            input_image = self.image_specs.convert(input_image, self)
+        else:
+            input_image = None
 
         ### Return the sample ###
 
