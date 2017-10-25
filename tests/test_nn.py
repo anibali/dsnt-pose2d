@@ -3,7 +3,7 @@ from torch.autograd import Variable, gradcheck
 from tests.common import TestCase
 
 from dsnt.nn import DSNT, dsnt, euclidean_loss, thresholded_softmax, kl_gauss_2d, mse_gauss_2d,\
-    js_gauss_2d, make_gauss
+    js_gauss_2d, make_gauss, variance_loss
 
 
 class TestDSNT(TestCase):
@@ -160,18 +160,6 @@ class TestFunctionalDSNT(TestCase):
 
         expected_grad = self.SIMPLE_GRAD_INPUT.cuda()
         self.assertEqual(in_var.grad.data, expected_grad)
-
-    def test_square_coords(self):
-        in_var = Variable(torch.Tensor([[
-            [0.0, 0.1, 0.0],
-            [0.1, 0.6, 0.1],
-            [0.0, 0.1, 0.0],
-        ]]))
-
-        expected = torch.Tensor([[2 * 0.1 * (2/3)**2, 2 * 0.1 * (2/3)**2]])
-        out_var = dsnt(in_var, square_coords=True)
-
-        self.assertEqual(out_var.data, expected)
 
 
 class TestEuclideanLoss(TestCase):
@@ -345,3 +333,20 @@ class TestMakeGauss(TestCase):
         ])
         actual = make_gauss(torch.Tensor([0, 0]), 5, 5, sigma=0.4)
         self.assertEqual(expected, actual, 1e-4)
+
+
+class TestVarianceLoss(TestCase):
+    def test_variance_loss(self):
+        hm = torch.Tensor([
+            [
+                [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
+                [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
+                [0.0219, 0.0983, 0.1621, 0.0983, 0.0219],
+                [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
+                [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
+            ],
+        ])
+
+        self.assertEqual(variance_loss(hm, target_variance=0.4**2), 0, 1e-3)
+        self.assertGreater(variance_loss(hm, target_variance=0.5**2), 1e-2)
+        self.assertGreater(variance_loss(hm, target_variance=0.2**2), 1e-2)

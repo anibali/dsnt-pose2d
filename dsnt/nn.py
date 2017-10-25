@@ -2,8 +2,6 @@
 Custom reusable nn modules.
 """
 
-from functools import reduce
-from operator import mul
 import numpy as np
 import torch
 import torch.nn as nn
@@ -91,8 +89,8 @@ class DSNT(nn.Module):
         return output.view(output_size)
 
 
-def dsnt(input, square_coords=False):
-    *first_dims, height, width = input.size()
+def generate_xy(inp):
+    *first_dims, height, width = inp.size()
 
     first_x = -(width - 1) / width
     first_y = -(height - 1) / height
@@ -100,24 +98,29 @@ def dsnt(input, square_coords=False):
     last_y = (height - 1) / height
 
     sing_dims = [1] * len(first_dims)
-    xs = torch.linspace(first_x, last_x, width).view(*sing_dims, 1, width)
-    ys = torch.linspace(first_y, last_y, height).view(*sing_dims, height, 1)
+    xs = torch.linspace(first_x, last_x, width).view(*sing_dims, 1, width).expand_as(inp)
+    ys = torch.linspace(first_y, last_y, height).view(*sing_dims, height, 1).expand_as(inp)
 
-    if isinstance(input, Variable):
+    if isinstance(inp, Variable):
         xs = Variable(xs, requires_grad=False)
         ys = Variable(ys, requires_grad=False)
 
-    xs = xs.type_as(input)
-    ys = ys.type_as(input)
+    xs = xs.type_as(inp)
+    ys = ys.type_as(inp)
 
-    if square_coords:
-        xs = xs ** 2
-        ys = ys ** 2
+    return xs, ys
 
-    output_xs = (input * xs).view(*first_dims, height * width).sum(-1, keepdim=False)
-    output_ys = (input * ys).view(*first_dims, height * width).sum(-1, keepdim=False)
-    output = torch.stack([output_xs, output_ys], -1)
 
+def expectation_2d(x, probabilities):
+    prod = x * probabilities
+    *first_dims, height, width = prod.size()
+    mean = prod.view(*first_dims, height * width).sum(-1, keepdim=False)
+    return mean
+
+
+def dsnt(inp):
+    xs, ys = generate_xy(inp)
+    output = torch.stack([expectation_2d(xs, inp), expectation_2d(ys, inp)], -1)
     return output
 
 
@@ -160,10 +163,6 @@ def euclidean_loss(actual, target, mask=None):
 
 
 class ThresholdedSoftmax(Function):
-    """
-
-    """
-
     @staticmethod
     def forward(ctx, inp, threshold=-np.inf, eps=1e-12):
         mask = inp.ge(threshold).type_as(inp)
@@ -274,3 +273,17 @@ def mse_gauss_2d(inp, coords, mask=None, sigma=1):
     sq_error_sum = sq_error.sum(-1, keepdim=False).sum(-1, keepdim=False)
 
     return _avg_losses(sq_error_sum, mask)
+
+
+def variance_loss(inp, mask=None, target_variance=1):
+    # variance = E[(x - E[x])^2]
+    xs, ys = generate_xy(inp)
+    mean_x = expectation_2d(xs, inp).unsqueeze(-1)
+    mean_y = expectation_2d(ys, inp).unsqueeze(-1)
+    sq_xs = (xs - mean_x) ** 2
+    sq_ys = (ys - mean_y) ** 2
+    variance = torch.stack([expectation_2d(sq_xs, inp), expectation_2d(sq_ys, inp)], -1)
+
+    sq_error = (variance - target_variance) ** 2
+
+    return _avg_losses(sq_error, mask)

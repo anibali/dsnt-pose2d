@@ -60,7 +60,7 @@ def parse_args():
                         choices=['softmax', 'thresholded_softmax', 'abs', 'relu', 'sigmoid'],
                         help='heatmap preactivation function (default="softmax")')
     parser.add_argument('--reg', type=str, default='none',
-                        choices=['none', 'stddev', 'js', 'kl', 'mse'],
+                        choices=['none', 'var', 'js', 'kl', 'mse'],
                         help='set the regularizer (default="none")')
     parser.add_argument('--reg-coeff', type=float, default=1.0,
                         help='coefficient for controlling regularization strength')

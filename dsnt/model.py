@@ -44,25 +44,13 @@ class HumanPoseModel(nn.Module):
         x = x.view(-1, n_chans, height, width)
         return x
 
-    def _calculate_reg_loss(self, out_var, target_var, mask_var, reg, hm_var, hm_sigma):
+    def _calculate_reg_loss(self, target_var, mask_var, reg, hm_var, hm_sigma):
         # Convert sigma (aka standard deviation) from pixels to normalized units
         sigma = (2.0 * hm_sigma / hm_var.size(-1))
 
         # Apply a regularisation term relating to the shape of the heatmap.
-        if reg == 'stddev':
-            # Calculate normalized variance from pixel stddev
-            target_variance = sigma ** 2
-
-            # variance = E[x^2] - E[x]^2
-            squared_mean = out_var ** 2
-            mean_x2 = dsnt.nn.dsnt(hm_var, square_coords=True)
-            variance = mean_x2 - squared_mean
-
-            # reg_loss = mean((variance - target_variance)^2)
-            diff = variance - target_variance
-            if mask_var is not None:
-                diff = diff * mask_var.unsqueeze(-1)
-            reg_loss = (diff ** 2).sum() / diff.nelement()
+        if reg == 'var':
+            reg_loss = dsnt.nn.variance_loss(hm_var, mask_var, target_variance=sigma**2)
         elif reg == 'kl':
             reg_loss = dsnt.nn.kl_gauss_2d(hm_var, target_var, mask_var, sigma)
         elif reg == 'js':
@@ -152,7 +140,7 @@ class ResNetHumanPoseModel(HumanPoseModel):
             loss = euclidean_loss(out_var, target_var, mask_var)
 
             reg_loss = self._calculate_reg_loss(
-                out_var, target_var, mask_var, self.reg, self.heatmaps, self.hm_sigma)
+                target_var, mask_var, self.reg, self.heatmaps, self.hm_sigma)
 
             return loss + self.reg_coeff * reg_loss
         elif self.output_strat == 'fc':
@@ -251,7 +239,7 @@ class HourglassHumanPoseModel(HumanPoseModel):
                 loss = euclidean_loss(out_var, target_var, mask_var)
 
                 reg_loss = self._calculate_reg_loss(
-                    out_var, target_var, mask_var, self.reg, self.heatmaps_array[i], self.hm_sigma)
+                    target_var, mask_var, self.reg, self.heatmaps_array[i], self.hm_sigma)
 
                 total_loss += loss + self.reg_coeff * reg_loss
 
