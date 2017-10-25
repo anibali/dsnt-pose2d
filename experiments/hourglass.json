@@ -7,17 +7,17 @@
   ],
   "jobs": [
     // # Hourglass
-    "scripts/train.sh --tags hourglass --base-model=hg1 --batch-size=6 --output-strat=gauss",
-    "scripts/train.sh --tags hourglass --base-model=hg1 --batch-size=6 --output-strat=dsnt",
-    "scripts/train.sh --tags hourglass --base-model=hg1 --batch-size=6 --output-strat=dsnt --reg=js --hm-sigma=1.0 --reg-coeff=0.2",
-    "scripts/train.sh --tags hourglass --base-model=hg2 --batch-size=6 --output-strat=gauss",
-    "scripts/train.sh --tags hourglass --base-model=hg2 --batch-size=6 --output-strat=dsnt",
-    "scripts/train.sh --tags hourglass --base-model=hg2 --batch-size=6 --output-strat=dsnt --reg=js --hm-sigma=1.0 --reg-coeff=0.2",
-    "scripts/train.sh --tags hourglass --base-model=hg4 --batch-size=6 --output-strat=gauss",
-    "scripts/train.sh --tags hourglass --base-model=hg4 --batch-size=6 --output-strat=dsnt",
-    "scripts/train.sh --tags hourglass --base-model=hg4 --batch-size=6 --output-strat=dsnt --reg=js --hm-sigma=1.0 --reg-coeff=0.2",
-    "scripts/train.sh --tags hourglass --base-model=hg8 --batch-size=6 --output-strat=gauss",
-    "scripts/train.sh --tags hourglass --base-model=hg8 --batch-size=6 --output-strat=dsnt",
-    "scripts/train.sh --tags hourglass --base-model=hg8 --batch-size=6 --output-strat=dsnt --reg=js --hm-sigma=1.0 --reg-coeff=0.2"
+//    "scripts/train.sh --tags hourglass --base-model=hg1 --batch-size=6 --output-strat=gauss",
+//    "scripts/train.sh --tags hourglass --base-model=hg1 --batch-size=6 --output-strat=dsnt",
+//    "scripts/train.sh --tags hourglass --base-model=hg1 --batch-size=6 --output-strat=dsnt --reg=js --hm-sigma=1.0 --reg-coeff=0.2",
+//    "scripts/train.sh --tags hourglass --base-model=hg2 --batch-size=6 --output-strat=gauss",
+//    "scripts/train.sh --tags hourglass --base-model=hg2 --batch-size=6 --output-strat=dsnt",
+//    "scripts/train.sh --tags hourglass --base-model=hg2 --batch-size=6 --output-strat=dsnt --reg=js --hm-sigma=1.0 --reg-coeff=0.2",
+//    "scripts/train.sh --tags hourglass --base-model=hg4 --batch-size=6 --output-strat=gauss",
+//    "scripts/train.sh --tags hourglass --base-model=hg4 --batch-size=6 --output-strat=dsnt",
+//    "scripts/train.sh --tags hourglass --base-model=hg4 --batch-size=6 --output-strat=dsnt --reg=js --hm-sigma=1.0 --reg-coeff=0.2",
+//    "scripts/train.sh --tags hourglass --base-model=hg8 --batch-size=6 --output-strat=gauss",
+//    "scripts/train.sh --tags hourglass --base-model=hg8 --batch-size=6 --output-strat=dsnt",
+//    "scripts/train.sh --tags hourglass --base-model=hg8 --batch-size=6 --output-strat=dsnt --reg=js --hm-sigma=1.0 --reg-coeff=0.2"
   ]
 }

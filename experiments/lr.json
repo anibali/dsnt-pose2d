@@ -7,18 +7,15 @@
   ],
   "jobs": [
     // # Different learning rates (to test hyperparameter robustness)
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=1.00e-5",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=3.16e-5",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=1.00e-4",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=3.16e-4",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=1.00e-3",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=dsnt --reg=js --lr=3.16e-3",
-
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=1.00e-5",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=3.16e-5",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=1.00e-4",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=3.16e-4",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=1.00e-3",
-    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --out-strat=gauss --lr=3.16e-3"
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=dsnt --reg=js --lr=2.50e-5",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=dsnt --reg=js --lr=7.91e-5",
+    // -"scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=dsnt --reg=js --lr=2.50e-4",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=dsnt --reg=js --lr=7.91e-4",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=dsnt --reg=js --lr=2.50e-3",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=gauss --lr=2.50e-5",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=gauss --lr=7.91e-5",
+    // -"scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=gauss --lr=2.50e-4",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=gauss --lr=7.91e-4",
+    "scripts/train.sh --tags lr --base-model=resnet34 --dilate=2 --output-strat=gauss --lr=2.50e-3"
   ]
 }

@@ -7,13 +7,15 @@
   ],
   "jobs": [
     // # Varying depths
-    "scripts/train.sh --tags depth --base-model=resnet18  --dilate=1 --reg=js",
-    "scripts/train.sh --tags depth --base-model=resnet18  --dilate=2 --reg=js",
-    "scripts/train.sh --tags depth --base-model=resnet34  --dilate=1 --reg=js",
-    "scripts/train.sh --tags depth --base-model=resnet34  --dilate=2 --reg=js",
-    "scripts/train.sh --tags depth --base-model=resnet50  --dilate=1 --reg=js",
-    "scripts/train.sh --tags depth --base-model=resnet50  --dilate=2 --reg=js",
-    "scripts/train.sh --tags depth --base-model=resnet101 --dilate=1 --reg=js",
-    "scripts/train.sh --tags depth --base-model=resnet101 --dilate=2 --reg=js"
+//    "scripts/train.sh --tags depth --base-model=resnet18  --dilate=1 --reg=js",
+//    "scripts/train.sh --tags depth --base-model=resnet18  --dilate=2 --reg=js",
+//    "scripts/train.sh --tags depth --base-model=resnet18  --dilate=3 --reg=js",
+//    "scripts/train.sh --tags depth --base-model=resnet34  --dilate=1 --reg=js",
+    // -"scripts/train.sh --tags depth --base-model=resnet34  --dilate=2 --reg=js",
+//    "scripts/train.sh --tags depth out-strat --base-model=resnet34  --dilate=3 --reg=js",
+//    "scripts/train.sh --tags depth --base-model=resnet50  --dilate=1 --reg=js",
+//    "scripts/train.sh --tags depth --base-model=resnet50  --dilate=2 --reg=js",
+//    "scripts/train.sh --tags depth --base-model=resnet101 --dilate=1 --reg=js",
+//    "scripts/train.sh --tags depth --base-model=resnet101 --dilate=2 --reg=js --batch-size=24"
   ]
 }

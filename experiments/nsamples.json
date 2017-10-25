@@ -1,0 +1,23 @@
+{
+  "hosts": [
+    { "name": "crumb", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "snootles", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "oola", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "droopy", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" }
+  ],
+  "jobs": [
+    // # Varying number of training samples
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=1024 --output-strat=dsnt --reg=js",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=1024 --output-strat=fc",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=1024 --output-strat=gauss",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=2048 --output-strat=dsnt --reg=js",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=2048 --output-strat=fc",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=2048 --output-strat=gauss",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=4096 --output-strat=dsnt --reg=js",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=4096 --output-strat=fc",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=4096 --output-strat=gauss",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=8192 --output-strat=dsnt --reg=js",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=8192 --output-strat=fc",
+    "scripts/train.sh --tags nsamples --base-model=resnet34 --dilate=2 --no-aug --train-samples=8192 --output-strat=gauss"
+  ]
+}

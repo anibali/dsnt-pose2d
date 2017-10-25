@@ -7,7 +7,7 @@
   ],
   "jobs": [
     // # Varying heatmap preactivation functions
-//    "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=softmax",
+    // -"scripts/train.sh --tags preact reg --base-model=resnet34 --dilate=2 --reg=js --preact=softmax",
     "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=thresholded_softmax",
     "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=abs",
     "scripts/train.sh --tags preact --base-model=resnet34 --dilate=2 --reg=js --preact=relu",
