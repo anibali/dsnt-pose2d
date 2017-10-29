@@ -278,12 +278,13 @@ def mse_gauss_2d(inp, coords, mask=None, sigma=1):
 def variance_loss(inp, mask=None, target_variance=1):
     # variance = E[(x - E[x])^2]
     xs, ys = generate_xy(inp)
-    mean_x = expectation_2d(xs, inp).unsqueeze(-1)
-    mean_y = expectation_2d(ys, inp).unsqueeze(-1)
+    mean_x = expectation_2d(xs, inp).unsqueeze(-1).unsqueeze(-1)
+    mean_y = expectation_2d(ys, inp).unsqueeze(-1).unsqueeze(-1)
     sq_xs = (xs - mean_x) ** 2
     sq_ys = (ys - mean_y) ** 2
     variance = torch.stack([expectation_2d(sq_xs, inp), expectation_2d(sq_ys, inp)], -1)
 
     sq_error = (variance - target_variance) ** 2
+    sq_error_sum = sq_error.sum(-1, keepdim=False)
 
-    return _avg_losses(sq_error, mask)
+    return _avg_losses(sq_error_sum, mask)
