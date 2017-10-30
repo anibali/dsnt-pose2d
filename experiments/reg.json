@@ -7,18 +7,19 @@
   ],
   "jobs": [
     // # "Baseline" (estimated best)
-//    "scripts/train.sh --tags reg regstr regsize out-strat depth --base-model=resnet34 --dilate=2 --reg=js",
+    "scripts/train.sh --tags reg regstr regsize out-strat depth --base-model=resnet34 --dilate=2 --reg=js",
     // # Varying regularizer
-//    "scripts/train.sh --tags reg --base-model=resnet34 --dilate=2 --reg=var",
-//    "scripts/train.sh --tags reg --base-model=resnet34 --dilate=2 --reg=kl",
-//    "scripts/train.sh --tags reg preact out-strat --base-model=resnet34 --dilate=2 --reg=none",
+    "scripts/train.sh --tags reg --base-model=resnet34 --dilate=2 --reg=var",
+    "scripts/train.sh --tags reg --base-model=resnet34 --dilate=2 --reg=mse",
+    "scripts/train.sh --tags reg --base-model=resnet34 --dilate=2 --reg=kl",
+    "scripts/train.sh --tags reg preact out-strat --base-model=resnet34 --dilate=2 --reg=none",
     // Varying regularization strength
-//    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=0.2",
-//    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=5.0",
-//    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=10.0",
+    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=0.2",
+    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=5.0",
+    "scripts/train.sh --tags regstr --base-model=resnet34 --dilate=2 --reg=js --reg-coeff=10.0",
     // Varying regularization size
-//    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=0.5",
-//    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=2.0",
-//    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=4.0"
+    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=0.5",
+    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=2.0",
+    "scripts/train.sh --tags regsize --base-model=resnet34 --dilate=2 --reg=js --hm-sigma=4.0"
   ]
 }

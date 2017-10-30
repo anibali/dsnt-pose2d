@@ -7,21 +7,21 @@
   ],
   "jobs": [
     // Varying output strategies
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=3 --output-strat=dsnt",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=3 --output-strat=dsnt",
     // -"scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=3 --output-strat=dsnt --reg=js",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=3 --output-strat=gauss",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=3 --output-strat=fc",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=3 --output-strat=gauss",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=3 --output-strat=fc",
     // -"scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=2 --output-strat=dsnt",
     // -"scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=2 --output-strat=dsnt --reg=js",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=2 --output-strat=gauss",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=2 --output-strat=fc",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=1 --output-strat=dsnt",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=1 --output-strat=dsnt --reg=js",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=1 --output-strat=gauss",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=1 --output-strat=fc",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=0 --output-strat=dsnt",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=0 --output-strat=dsnt --reg=js"
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=0 --output-strat=gauss",
-//    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=0 --output-strat=fc"
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=2 --output-strat=gauss",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=2 --output-strat=fc",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=1 --output-strat=dsnt",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=1 --output-strat=dsnt --reg=js",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=1 --output-strat=gauss",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=1 --output-strat=fc",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=0 --output-strat=dsnt",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=0 --output-strat=dsnt --reg=js"
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=0 --output-strat=gauss",
+    "scripts/train.sh  --tags out-strat --base-model=resnet34 --dilate=0 --output-strat=fc"
   ]
 }
