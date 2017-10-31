@@ -2,6 +2,7 @@
 
 import os
 import sys
+import traceback
 import urllib.request
 import urllib.error
 import json
@@ -31,6 +32,16 @@ def frame_to_dict(frame_title, frames_data):
 
 
 def fetch_details(showoff_netloc, notebook_ids):
+    with urllib.request.urlopen('http://{}/api/v2/tags'.format(showoff_netloc)) as f:
+        raw_tags = json.load(f)
+
+    tags = {}
+    for raw_tag in raw_tags['data']:
+        notebook_id = int(raw_tag['relationships']['notebook']['data']['id'])
+        if not notebook_id in tags:
+            tags[notebook_id] = []
+        tags[notebook_id].append(raw_tag['attributes']['name'])
+
     notebook_details = {}
 
     for notebook_id in notebook_ids:
@@ -41,7 +52,7 @@ def fetch_details(showoff_netloc, notebook_ids):
                 response = json.load(f)
 
             notebook_title = response['data']['attributes']['title']
-            frames_data = response['data']['relationships']['frames']['data']
+            frames_data = [x for x in response['included'] if x['type'] == 'frames']
 
             inspect_dict = frame_to_dict('Inspect', frames_data)
             args_dict = frame_to_dict('Command-line arguments', frames_data)
@@ -57,13 +68,18 @@ def fetch_details(showoff_netloc, notebook_ids):
                 'experiment_id': experiment_id,
                 'notebook_id': notebook_id,
                 'args': args_dict,
+                'tags': tags[notebook_id],
             }
         except urllib.error.URLError as error:
-            print('Unable to fetch details for notebook {:d}\n↳ {}'.format(notebook_id, error),
+            print('Unable to fetch details for notebook {:d}\n↳ {}'.format(
+                  notebook_id, error),
                   file=sys.stderr)
         except Exception as error:
-            print('Unable to parse details for notebook {:d}\n↳ {}'.format(notebook_id, error),
+            print('Unable to parse details for notebook {:d}\n↳ {}: {}'.format(
+                  notebook_id, error.__class__.__name__, error),
                   file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
+
 
     return notebook_details
 
@@ -73,39 +89,40 @@ def generate_experiment_aliases(notebook):
 
     base_model = notebook['args']['base_model']
     dilate = notebook['args']['dilate']
-    truncate = notebook['args']['truncate']
-    preact = notebook['args']['preact']
     output_strat = notebook['args']['output_strat']
+    tags = notebook['tags']
 
-    if base_model == 'resnet34' and output_strat == 'dsnt' and dilate == '2':
-        aliases.append('preact-{}-d{}-t{}'.format(preact, dilate, truncate))
+    if 'time' in tags:
+        aliases.append('time-{}-d{}'.format(base_model, dilate))
 
-    if base_model == 'resnet34' and preact == 'softmax':
-        aliases.append('outstrat-{}-d{}-t{}'.format(output_strat, dilate, truncate))
-
-    if base_model.startswith('resnet') and output_strat == 'dsnt' and preact == 'softmax':
-        aliases.append('depth-{}-d{}-t{}'.format(base_model, dilate, truncate))
-
-    if base_model.startswith('hg'):
-        aliases.append('hourglass-{}-{}'.format(base_model, output_strat))
+    if 'out-strat' in tags and output_strat == 'gauss':
+        aliases.append('outstrat-{}-{}-d{}'.format(output_strat, base_model, dilate))
 
     return aliases
 
 
 def main():
-    notebook_ids = list(range(365, 399 + 1)) + list(range(409, 413 + 1)) + [423, 424, 429]
     showoff_netloc = 'anibali-ltu.duckdns.org:16676'
+
+    with urllib.request.urlopen('http://{}/api/v2/notebooks'.format(showoff_netloc)) as f:
+        raw_notebooks = json.load(f)
+    notebook_ids = [int(nb['id']) for nb in raw_notebooks['data']]
 
     notebooks = fetch_details(showoff_netloc, notebook_ids)
 
+    if not os.path.exists('out/by-alias'):
+        os.makedirs('out/by-alias')
+
     for notebook_id, notebook in notebooks.items():
         print('# {} (notebook_id={:d})'.format(notebook['experiment_id'], notebook_id))
+        aliases = generate_experiment_aliases(notebook)
+        if len(aliases) == 0:
+            continue
         if notebook['epoch'] == 119:
             src = '{}:/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt/out/{}'.format(
                 notebook['host'], notebook['experiment_id'])
             if not os.path.exists('out/{}'.format(notebook['experiment_id'])):
                 call(['scp', '-r', src, 'out/'])
-            aliases = generate_experiment_aliases(notebook)
             for alias in aliases:
                 call(['ln', '-snf', '../{}'.format(notebook['experiment_id']), 'out/by-alias/{}'.format(alias)])
             with open(os.path.join('out', notebook['experiment_id'], 'notebook_details.json'), 'w') as f:
