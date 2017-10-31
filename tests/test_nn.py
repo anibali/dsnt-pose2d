@@ -234,26 +234,52 @@ class TestThresholdedSoftmax(TestCase):
         self.assertTrue(gradcheck(thresholded_softmax, (in_var, threshold)))
 
 
+class TestMakeGauss(TestCase):
+    def test_make_gauss(self):
+        expected = torch.Tensor([
+            [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
+            [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
+            [0.0219, 0.0983, 0.1621, 0.0983, 0.0219],
+            [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
+            [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
+        ])
+        actual = make_gauss(torch.Tensor([0, 0]), 5, 5, sigma=0.4)
+        self.assertEqual(expected, actual, 1e-4)
+
+
+def _test_reg_loss(tc, loss_method, shift_mean=True):
+    # Target mean and standard deviation
+    target_mean = torch.Tensor([0, 0])
+    target_stddev = 0.4
+
+    # Helper function to calculate the loss between the target and a Gaussian heatmap
+    # parameterized by `mean` and `stddev`.
+    def calc_loss(mean, stddev):
+        hm = make_gauss(mean, 5, 5, sigma=stddev)
+        return loss_method(hm, target_mean, sigma=target_stddev)
+
+    # Minimum loss occurs when the heatmap's mean and standard deviation are the same
+    # as the target
+    min_loss = calc_loss(target_mean, target_stddev)
+
+    # Minimum loss should be close to zero
+    tc.assertEqual(min_loss, 0, 1e-3)
+
+    # Loss should increase if the heatmap has a larger or smaller standard deviation than
+    # the target
+    tc.assertGreater(calc_loss(target_mean, target_stddev + 0.2), min_loss + 1e-3)
+    tc.assertGreater(calc_loss(target_mean, target_stddev - 0.2), min_loss + 1e-3)
+
+    if shift_mean:
+        # Loss should increase if the heatmap has its mean location at a different
+        # position than the target
+        tc.assertGreater(calc_loss(target_mean + 0.1, target_stddev), min_loss + 1e-3)
+        tc.assertGreater(calc_loss(target_mean - 0.1, target_stddev), min_loss + 1e-3)
+
+
 class TestKLGaussLoss(TestCase):
     def test_kl_gauss_2d(self):
-        t = torch.Tensor([
-            [
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.1],
-                [0.0, 0.0, 0.1, 0.8],
-            ],
-            [
-                [0.8, 0.1, 0.0, 0.0],
-                [0.1, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-            ]
-        ])
-        coords = torch.Tensor([[1, 1], [-1, -1]])
-
-        self.assertEqual(1.2228811717796824, kl_gauss_2d(t, coords, sigma=1))
-        self.assertEqual(1.2228811717796824, kl_gauss_2d(t[0], coords[0], sigma=1))
+        _test_reg_loss(self, kl_gauss_2d)
 
     def test_mask(self):
         t = torch.Tensor([
@@ -280,73 +306,17 @@ class TestKLGaussLoss(TestCase):
 
 class TestMSEGaussLoss(TestCase):
     def test_mse_gauss_2d(self):
-        t = torch.Tensor([
-            [
-                [0.0081, 0.0172, 0.0284, 0.0364],
-                [0.0172, 0.0364, 0.0601, 0.0772],
-                [0.0284, 0.0601, 0.0991, 0.1272],
-                [0.0364, 0.0772, 0.1272, 0.1633],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.1],
-                [0.0, 0.0, 0.1, 0.2],
-                [0.0, 0.1, 0.2, 0.3],
-            ]
-        ])
-        coords = torch.Tensor([[1, 1], [1, 1]])
-
-        self.assertEqual(0.021896807803733806, mse_gauss_2d(t, coords, sigma=1))
-        self.assertEqual(0, mse_gauss_2d(t[0], coords[0], sigma=1))
+        _test_reg_loss(self, mse_gauss_2d)
 
 
 class TestJSGaussLoss(TestCase):
     def test_js_gauss_2d(self):
-        t = torch.Tensor([
-            [
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.1],
-                [0.0, 0.0, 0.1, 0.8],
-            ],
-            [
-                [0.8, 0.1, 0.0, 0.0],
-                [0.1, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-            ]
-        ])
-        coords = torch.Tensor([[1, 1], [-1, -1]])
-
-        self.assertEqual(0.3180417843094644, js_gauss_2d(t, coords, sigma=1))
-        self.assertEqual(0.3180417843094644, js_gauss_2d(t[0], coords[0], sigma=1))
-
-
-class TestMakeGauss(TestCase):
-    def test_make_gauss(self):
-        expected = torch.Tensor([
-            [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
-            [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
-            [0.0219, 0.0983, 0.1621, 0.0983, 0.0219],
-            [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
-            [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
-        ])
-        actual = make_gauss(torch.Tensor([0, 0]), 5, 5, sigma=0.4)
-        self.assertEqual(expected, actual, 1e-4)
+        _test_reg_loss(self, js_gauss_2d)
 
 
 class TestVarianceLoss(TestCase):
     def test_variance_loss(self):
-        hm = torch.Tensor([
-            [
-                [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
-                [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
-                [0.0219, 0.0983, 0.1621, 0.0983, 0.0219],
-                [0.0133, 0.0596, 0.0983, 0.0596, 0.0133],
-                [0.0030, 0.0133, 0.0219, 0.0133, 0.0030],
-            ],
-        ])
+        def _variance_loss(inp, coords, mask=None, sigma=1):
+            return variance_loss(inp, target_variance=sigma ** 2)
 
-        self.assertEqual(variance_loss(hm, target_variance=0.4**2), 0, 1e-3)
-        self.assertGreater(variance_loss(hm, target_variance=0.5**2), 1e-2)
-        self.assertGreater(variance_loss(hm, target_variance=0.2**2), 1e-2)
+        _test_reg_loss(self, _variance_loss, shift_mean=False)
