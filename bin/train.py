@@ -275,19 +275,21 @@ def main():
         with open('/etc/hostname', 'r') as f:
             hostname = f.read().strip()
 
-        client = pyshowoff.Client(args.showoff)
-        notebook = client.new_notebook(
+        client = pyshowoff.Client('http://' + args.showoff)
+        notebook = client.add_notebook(
             '[{}] Human pose ({}-d{}-t{}, {}, {}@{:.1e}, reg={})'.format(
                 hostname, base_model, dilate, truncate, args.output_strat, args.optim, args.lr,
-                args.reg))
+                args.reg)
+        ).result()
 
         for tag_name in args.tags:
-            notebook.new_tag(tag_name)
+            notebook.add_tag(tag_name)
 
         reporting.setup_showoff_output(notebook)
 
-        progress_frame = notebook.new_frame('Progress',
-            bounds={'x': 0, 'y': 924, 'width': 1920, 'height': 64})
+        progress_frame = notebook.add_frame('Progress',
+            bounds={'x': 0, 'y': 924, 'width': 1920, 'height': 64}
+        ).result()
     else:
         progress_frame = None
 
@@ -382,9 +384,10 @@ def main():
                 vis['train_heatmaps'] = model.heatmaps.data.cpu()
 
             if progress_frame is not None:
-                progress_frame.progress(
-                    epoch * len(train_data) + samples_processed,
-                    epochs * len(train_data))
+                so_far = epoch * len(train_data) + samples_processed
+                total = epochs * len(train_data)
+                notebook.set_progress(so_far / total)
+                progress_frame.progress(so_far, total)
 
     def validate(epoch):
         '''Do a full pass over the validation set, evaluating model performance.'''
