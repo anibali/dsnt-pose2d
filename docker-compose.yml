@@ -10,6 +10,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /etc/hostname:/etc/hostname:ro
     environment:
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
       - DISPLAY
       - PYTHONIOENCODING=utf_8
     ipc: host
