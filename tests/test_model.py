@@ -12,10 +12,11 @@ class TestResNetHumanPoseModel(TestCase):
         resnet = torchvision.models.resnet18()
 
         model = ResNetHumanPoseModel(resnet, n_chans=16, truncate=1)
+        model.cuda()
 
         sz = model.image_specs.size
         self.assertEqual(sz, 224)
-        out_var = model(Variable(torch.randn(1, 3, sz, sz)))
+        out_var = model(Variable(torch.randn(1, 3, sz, sz).cuda()))
         self.assertEqual(out_var.size(), torch.Size([1, 16, 2]))
 
         hm = model.heatmaps.data
@@ -25,10 +26,11 @@ class TestResNetHumanPoseModel(TestCase):
         resnet = torchvision.models.resnet18()
 
         model = ResNetHumanPoseModel(resnet, n_chans=16, dilate=2)
+        model.cuda()
 
         sz = model.image_specs.size
         self.assertEqual(sz, 224)
-        out_var = model(Variable(torch.randn(1, 3, sz, sz)))
+        out_var = model(Variable(torch.randn(1, 3, sz, sz).cuda()))
         self.assertEqual(out_var.size(), torch.Size([1, 16, 2]))
 
         hm = model.heatmaps.data

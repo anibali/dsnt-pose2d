@@ -50,13 +50,13 @@ class HumanPoseModel(nn.Module):
 
         # Apply a regularisation term relating to the shape of the heatmap.
         if reg == 'var':
-            reg_loss = dsnt.nn.variance_loss(hm_var, mask_var, target_variance=sigma**2)
+            reg_loss = dsnt.nn.variance_reg_loss(hm_var, target_var, sigma, mask_var)
         elif reg == 'kl':
-            reg_loss = dsnt.nn.kl_gauss_2d(hm_var, target_var, mask_var, sigma)
+            reg_loss = dsnt.nn.kl_reg_loss(hm_var, target_var, sigma, mask_var)
         elif reg == 'js':
-            reg_loss = dsnt.nn.js_gauss_2d(hm_var, target_var, mask_var, sigma)
+            reg_loss = dsnt.nn.js_reg_loss(hm_var, target_var, sigma, mask_var)
         elif reg == 'mse':
-            reg_loss = dsnt.nn.mse_gauss_2d(hm_var, target_var, mask_var, sigma)
+            reg_loss = dsnt.nn.mse_reg_loss(hm_var, target_var, sigma, mask_var)
         else:
             reg_loss = 0
 

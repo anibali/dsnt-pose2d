@@ -2,8 +2,8 @@ import torch
 from torch.autograd import Variable, gradcheck
 from tests.common import TestCase
 
-from dsnt.nn import dsnt, euclidean_loss, thresholded_softmax, kl_gauss_2d, mse_gauss_2d,\
-    js_gauss_2d, make_gauss, variance_loss
+from dsnt.nn import dsnt, euclidean_loss, thresholded_softmax, make_gauss,\
+    kl_reg_loss, js_reg_loss, mse_reg_loss, variance_reg_loss
 
 
 class TestFunctionalDSNT(TestCase):
@@ -176,7 +176,7 @@ def _test_reg_loss(tc, loss_method, shift_mean=True):
     # parameterized by `mean` and `stddev`.
     def calc_loss(mean, stddev):
         hm = make_gauss(mean, 5, 5, sigma=stddev)
-        return loss_method(hm, target_mean, sigma=target_stddev)
+        return loss_method(hm, target_mean, target_stddev, mask=None)
 
     # Minimum loss occurs when the heatmap's mean and standard deviation are the same
     # as the target
@@ -197,9 +197,9 @@ def _test_reg_loss(tc, loss_method, shift_mean=True):
         tc.assertGreater(calc_loss(target_mean - 0.1, target_stddev), min_loss + 1e-3)
 
 
-class TestKLGaussLoss(TestCase):
-    def test_kl_gauss_2d(self):
-        _test_reg_loss(self, kl_gauss_2d)
+class TestKLRegLoss(TestCase):
+    def test_kl_reg_loss(self):
+        _test_reg_loss(self, kl_reg_loss)
 
     def test_mask(self):
         t = torch.Tensor([
@@ -219,24 +219,21 @@ class TestKLGaussLoss(TestCase):
         coords = torch.Tensor([[1, 1], [0, 0]])
         mask = torch.Tensor([1, 0])
 
-        actual = kl_gauss_2d(Variable(t), Variable(coords), Variable(mask), sigma=1)
+        actual = kl_reg_loss(Variable(t), Variable(coords), 1, Variable(mask))
 
         self.assertEqual(1.2228811717796824, actual.data[0])
 
 
-class TestMSEGaussLoss(TestCase):
-    def test_mse_gauss_2d(self):
-        _test_reg_loss(self, mse_gauss_2d)
+class TestMSERegLoss(TestCase):
+    def test_mse_reg_loss(self):
+        _test_reg_loss(self, mse_reg_loss)
 
 
-class TestJSGaussLoss(TestCase):
-    def test_js_gauss_2d(self):
-        _test_reg_loss(self, js_gauss_2d)
+class TestJSRegLoss(TestCase):
+    def test_js_reg_loss(self):
+        _test_reg_loss(self, js_reg_loss)
 
 
-class TestVarianceLoss(TestCase):
-    def test_variance_loss(self):
-        def _variance_loss(inp, coords, mask=None, sigma=1):
-            return variance_loss(inp, target_variance=sigma ** 2)
-
-        _test_reg_loss(self, _variance_loss, shift_mean=False)
+class TestVarianceRegLoss(TestCase):
+    def test_variance_reg_loss(self):
+        _test_reg_loss(self, variance_reg_loss, shift_mean=False)
