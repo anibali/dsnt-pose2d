@@ -90,13 +90,20 @@ def generate_experiment_aliases(notebook):
     base_model = notebook['args']['base_model']
     dilate = notebook['args']['dilate']
     output_strat = notebook['args']['output_strat']
+    try:
+        reg = notebook['args']['reg']
+    except KeyError:
+        reg = 'none'
     tags = notebook['tags']
 
     if 'time' in tags:
         aliases.append('time-{}-d{}'.format(base_model, dilate))
 
-    if 'out-strat' in tags and output_strat == 'gauss':
-        aliases.append('outstrat-{}-{}-d{}'.format(output_strat, base_model, dilate))
+    if 'out-strat' in tags:
+        if output_strat == 'dsnt':
+            aliases.append('outstrat-{}{}-{}-d{}'.format(output_strat, reg, base_model, dilate))
+        elif output_strat == 'gauss':
+            aliases.append('outstrat-{}-{}-d{}'.format(output_strat, base_model, dilate))
 
     return aliases
 
