@@ -35,3 +35,29 @@ class TestResNetHumanPoseModel(TestCase):
 
         hm = model.heatmaps.data
         self.assertEqual(hm.size(), torch.Size([1, 16, 28, 28]))
+
+    def test_training_step(self):
+        Tensor = torch.cuda.FloatTensor
+
+        resnet = torchvision.models.resnet18()
+        model = ResNetHumanPoseModel(resnet, n_chans=16, output_strat='dsnt', reg='js')
+        model.type(Tensor)
+
+        old_params = []
+        for param in model.parameters():
+            old_params.append(param.data.clone())
+
+        optimizer = torch.optim.SGD(model.parameters(), lr=1.0)
+
+        in_var = Variable(Tensor(1, 3, 224, 224).uniform_(0, 1), requires_grad=False)
+        target_var = Variable(Tensor(1, 16, 2).uniform_(-1, 1), requires_grad=False)
+
+        out_var = model(in_var)
+        loss = model.forward_loss(out_var, target_var, mask_var=None)
+        loss.backward()
+
+        optimizer.step()
+
+        # Check that all parameter groups were updated
+        for param_var, old_param in zip(model.parameters(), old_params):
+            self.assertNotEqual(param_var.data, old_param)
