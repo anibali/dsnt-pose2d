@@ -26,38 +26,32 @@ def generate_predictions(model, dataset, use_flipped=True, batch_size=1, time_me
             batch_size = batch['input'].size(0)
             sum_meter.reset()
 
-            if use_flipped:
-                # Normal
-                in_var = Variable(batch['input'].cuda(), volatile=True)
-                hm_var = model.forward_part1(in_var)
-                if isinstance(hm_var, list):
-                    hm_var = hm_var[-1]
-                hm1 = Variable(hm_var.data.clone(), volatile=True)
+            with timer(sum_meter):
+                if use_flipped:
+                    sample = batch['input']
+                    rev_sample = reverse_tensor(batch['input'], -1)
+                    in_var = Variable(torch.cat([sample, rev_sample], 0).cuda(), volatile=True)
 
-                # Flipped
-                in_var = Variable(reverse_tensor(batch['input'], -1).cuda(), volatile=True)
-                hm_var = model.forward_part1(in_var)
-                if isinstance(hm_var, list):
-                    hm_var = hm_var[-1]
-                hm2 = reverse_tensor(hm_var, -1)
-                hm2 = hm2.index_select(-3, type_as_index(MPIIDataset.HFLIP_INDICES, hm2))
+                    hm_var = model.forward_part1(in_var)
+                    if isinstance(hm_var, list):
+                        # Just use the last heatmap from stacked hourglass
+                        hm_var = hm_var[-1]
+                    hm1, hm2 = hm_var.split(1)
+                    hm2 = reverse_tensor(hm2, -1)
+                    hm2 = hm2.index_select(-3, type_as_index(MPIIDataset.HFLIP_INDICES, hm2))
 
-                hm = (hm1 + hm2) / 2
-                out_var = model.forward_part2(hm)
-                coords = model.compute_coords(out_var)
-                orig_preds = torch.baddbmm(
-                    batch['transform_b'],
-                    coords.double(),
-                    batch['transform_m'])
-            else:
-                in_var = Variable(batch['input'].cuda(), volatile=True)
-                with timer(sum_meter):
+                    hm = (hm1 + hm2) / 2
+                    out_var = model.forward_part2(hm)
+                    coords = model.compute_coords(out_var)
+                else:
+                    in_var = Variable(batch['input'].cuda(), volatile=True)
                     out_var = model(in_var)
                     coords = model.compute_coords(out_var)
-                orig_preds = torch.baddbmm(
-                    batch['transform_b'],
-                    coords.double(),
-                    batch['transform_m'])
+
+            orig_preds = torch.baddbmm(
+                batch['transform_b'],
+                coords.double(),
+                batch['transform_m'])
 
             pos = i * batch_size
             preds[pos:(pos + batch_size)] = orig_preds
@@ -65,7 +59,7 @@ def generate_predictions(model, dataset, use_flipped=True, batch_size=1, time_me
             if time_meter is not None:
                 time_meter.add(sum_meter.value())
 
-            completed += in_var.data.size(0)
+            completed += batch_size
             bar.update(completed)
 
     return preds
