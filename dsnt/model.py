@@ -14,7 +14,7 @@ from torchvision import models
 
 import dsnt.nn
 from dsnt.nn import euclidean_loss, thresholded_softmax
-from dsnt import util, hourglass, minihg
+from dsnt import util, hourglass
 from dsnt.data import ImageSpecs
 
 
@@ -371,24 +371,6 @@ def _build_hg_model(base, stacks=2, blocks=1, output_strat='gauss', preact='soft
     return model
 
 
-def _build_minihg_model(base, stacks=2, blocks=1, depth=3, output_strat='dsnt', preact='softmax',
-                        hm_sigma=1.0):
-    m = re.search('minihg(\d+)', base)
-
-    if m is not None:
-        stacks = int(m.group(1))
-    elif base == 'minihg':
-        pass
-    else:
-        raise Exception('unsupported base model type: ' + base)
-
-    hg = minihg.MiniHourglassNet(depth=depth, num_stacks=stacks, num_blocks=blocks)
-
-    model = HourglassHumanPoseModel(hg, n_chans=16, output_strat=output_strat, preact=preact,
-                                    hm_sigma=hm_sigma)
-    return model
-
-
 def build_mpii_pose_model(base='resnet34', **kwargs):
     """Create a pose estimation model"""
 
@@ -396,8 +378,6 @@ def build_mpii_pose_model(base='resnet34', **kwargs):
         build_model = _build_resnet_pose_model
     elif base.startswith('hg'):
         build_model = _build_hg_model
-    elif base.startswith('minihg'):
-        build_model = _build_minihg_model
     else:
         raise Exception('unsupported base model type: ' + base)
 
