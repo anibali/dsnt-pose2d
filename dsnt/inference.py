@@ -48,10 +48,10 @@ def generate_predictions(model, dataset, use_flipped=True, batch_size=1, time_me
                     out_var = model(in_var)
                     coords = model.compute_coords(out_var)
 
-            orig_preds = torch.baddbmm(
-                batch['transform_b'],
-                coords.double(),
-                batch['transform_m'])
+                orig_preds = torch.baddbmm(
+                    batch['transform_b'],
+                    coords.double(),
+                    batch['transform_m'])
 
             pos = i * batch_size
             preds[pos:(pos + batch_size)] = orig_preds
