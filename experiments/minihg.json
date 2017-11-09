@@ -1,0 +1,17 @@
+{
+  "hosts": [
+    { "name": "crumb", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "snootles", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "oola", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" },
+    { "name": "droopy", "workdir": "/home/aiden/commie/home/aiden/Projects/PyTorch/dsnt" }
+  ],
+  "jobs": [
+    // # Hourglass
+    "scripts/train.sh --tags minihg --base-model=minihg2 --batch-size=24 --output-strat=gauss",
+    "scripts/train.sh --tags minihg --base-model=minihg2 --batch-size=24 --output-strat=dsnt --reg=js",
+    "scripts/train.sh --tags minihg --base-model=minihg4 --batch-size=24 --output-strat=gauss",
+    "scripts/train.sh --tags minihg --base-model=minihg4 --batch-size=24 --output-strat=dsnt --reg=js",
+    "scripts/train.sh --tags minihg --base-model=minihg8 --batch-size=24 --output-strat=gauss",
+    "scripts/train.sh --tags minihg --base-model=minihg8 --batch-size=24 --output-strat=dsnt --reg=js"
+  ]
+}
