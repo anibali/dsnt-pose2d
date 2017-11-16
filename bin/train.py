@@ -13,6 +13,7 @@ import argparse
 import datetime
 import random
 
+import progressbar
 import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
@@ -336,99 +337,112 @@ def main():
         scheduler.step(epoch)
         samples_processed = 0
 
-        for i, batch in generator_timer(enumerate(train_loader), tel['train_data_load_time']):
-            with timer(tel['train_data_transfer_time']):
-                in_var = Variable(batch['input'].cuda(), requires_grad=False)
-                target_var = Variable(batch['part_coords'].cuda(), requires_grad=False)
-                mask_var = Variable(batch['part_mask'].type(torch.cuda.FloatTensor), requires_grad=False)
+        with progressbar.ProgressBar(max_value=len(train_data)) as bar:
+            for i, batch in generator_timer(enumerate(train_loader), tel['train_data_load_time']):
+                with timer(tel['train_data_transfer_time']):
+                    in_var = Variable(batch['input'].cuda(), requires_grad=False)
+                    target_var = Variable(batch['part_coords'].cuda(), requires_grad=False)
+                    mask_var = Variable(batch['part_mask'].type(torch.cuda.FloatTensor), requires_grad=False)
 
-            with timer(tel['train_forward_time']):
-                out_var = model(in_var)
+                with timer(tel['train_forward_time']):
+                    out_var = model(in_var)
 
-            with timer(tel['train_criterion_time']):
-                loss = model.forward_loss(out_var, target_var, mask_var)
+                with timer(tel['train_criterion_time']):
+                    loss = model.forward_loss(out_var, target_var, mask_var)
 
-                if np.isnan(loss.data[0]):
-                    state = {
-                        'state_dict': model.state_dict(),
-                        'model_desc': model_desc,
-                        'optimizer': optimizer.state_dict(),
-                        'epoch': epoch,
-                        'input': in_var.data,
-                        'target': target_var.data,
-                        'mask': mask_var.data,
-                    }
-                    torch.save(state, 'model_dump.pth')
-                    raise Exception('training loss should not be nan')
+                    if np.isnan(loss.data[0]):
+                        state = {
+                            'state_dict': model.state_dict(),
+                            'model_desc': model_desc,
+                            'optimizer': optimizer.state_dict(),
+                            'epoch': epoch,
+                            'input': in_var.data,
+                            'target': target_var.data,
+                            'mask': mask_var.data,
+                        }
+                        torch.save(state, 'model_dump.pth')
+                        raise Exception('training loss should not be nan')
 
-                tel['train_loss'].add(loss.data[0])
+                    tel['train_loss'].add(loss.data[0])
 
-            with timer(tel['train_eval_time']):
-                coords = model.compute_coords(out_var)
-                eval_metrics_for_batch(train_eval, batch, coords)
+                with timer(tel['train_eval_time']):
+                    coords = model.compute_coords(out_var)
+                    eval_metrics_for_batch(train_eval, batch, coords)
 
-            with timer(tel['train_backward_time']):
-                optimizer.zero_grad()
-                loss.backward()
+                with timer(tel['train_backward_time']):
+                    optimizer.zero_grad()
+                    loss.backward()
 
-            with timer(tel['train_optim_time']):
-                optimizer.step()
+                with timer(tel['train_optim_time']):
+                    optimizer.step()
 
-            samples_processed += batch['input'].size(0)
+                samples_processed += batch['input'].size(0)
+                bar.update(samples_processed)
 
-            if i == 0:
-                vis['train_images'] = batch['input']
-                vis['train_preds'] = coords
-                vis['train_masks'] = batch['part_mask']
-                vis['train_coords'] = batch['part_coords']
-                vis['train_heatmaps'] = model.heatmaps.data.cpu()
+                if i == 0:
+                    vis['train_images'] = batch['input']
+                    vis['train_preds'] = coords
+                    vis['train_masks'] = batch['part_mask']
+                    vis['train_coords'] = batch['part_coords']
+                    vis['train_heatmaps'] = model.heatmaps.data.cpu()
 
-            if progress_frame is not None:
-                so_far = epoch * len(train_data) + samples_processed
-                total = epochs * len(train_data)
-                notebook.set_progress(so_far / total)
-                progress_frame.progress(so_far, total)
+                if progress_frame is not None:
+                    so_far = epoch * len(train_data) + samples_processed
+                    total = epochs * len(train_data)
+                    notebook.set_progress(so_far / total)
+                    progress_frame.progress(so_far, total)
 
     def validate(epoch):
         '''Do a full pass over the validation set, evaluating model performance.'''
 
         model.eval()
         val_preds = torch.DoubleTensor(len(val_data), 16, 2)
+        samples_processed = 0
 
-        for i, batch in enumerate(val_loader):
-            in_var = Variable(batch['input'].cuda(), volatile=True)
-            target_var = Variable(batch['part_coords'].cuda(), volatile=True)
-            mask_var = Variable(batch['part_mask'].type(torch.cuda.FloatTensor), volatile=True)
+        with progressbar.ProgressBar(max_value=len(train_data)) as bar:
+            for i, batch in enumerate(val_loader):
+                in_var = Variable(batch['input'].cuda(), volatile=True)
+                target_var = Variable(batch['part_coords'].cuda(), volatile=True)
+                mask_var = Variable(batch['part_mask'].type(torch.cuda.FloatTensor), volatile=True)
 
-            out_var = model(in_var)
-            loss = model.forward_loss(out_var, target_var, mask_var)
-            tel['val_loss'].add(loss.data[0])
-            coords = model.compute_coords(out_var)
-            eval_metrics_for_batch(val_eval, batch, coords)
+                out_var = model(in_var)
+                loss = model.forward_loss(out_var, target_var, mask_var)
+                tel['val_loss'].add(loss.data[0])
+                coords = model.compute_coords(out_var)
+                eval_metrics_for_batch(val_eval, batch, coords)
 
-            preds = coords.double()
-            pos = i * batch_size
-            orig_preds = val_preds[pos:(pos + preds.size(0))]
-            torch.baddbmm(
-                batch['transform_b'],
-                preds,
-                batch['transform_m'],
-                out=orig_preds)
+                preds = coords.double()
+                pos = i * batch_size
+                orig_preds = val_preds[pos:(pos + preds.size(0))]
+                torch.baddbmm(
+                    batch['transform_b'],
+                    preds,
+                    batch['transform_m'],
+                    out=orig_preds)
 
-            if i == 0:
-                vis['val_images'] = batch['input']
-                vis['val_preds'] = coords
-                vis['val_masks'] = batch['part_mask']
-                vis['val_coords'] = batch['part_coords']
-                vis['val_heatmaps'] = model.heatmaps.data.cpu()
+                samples_processed += batch['input'].size(0)
+                bar.update(samples_processed)
 
-        tel['val_preds'].set_value(val_preds.numpy())
+                if i == 0:
+                    vis['val_images'] = batch['input']
+                    vis['val_preds'] = coords
+                    vis['val_masks'] = batch['part_mask']
+                    vis['val_coords'] = batch['part_coords']
+                    vis['val_heatmaps'] = model.heatmaps.data.cpu()
+
+            tel['val_preds'].set_value(val_preds.numpy())
+
+    print('Entering the main training loop')
 
     for epoch in range(epochs):
+        print('> Epoch {:3d}/{:3d}'.format(epoch + 1, epochs))
+
         tel['epoch'].set_value(epoch)
         tel['epoch_time'].reset()
 
+        print('Training pass...')
         train(epoch)
+        print('Validation pass...')
         validate(epoch)
 
         train_sample = []
@@ -481,6 +495,7 @@ def main():
         tel.step()
         train_eval.reset()
         val_eval.reset()
+        print()
 
 
 if __name__ == '__main__':
