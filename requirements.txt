@@ -1,0 +1,14 @@
+graphviz==0.7.1
+h5py==2.7.0
+h5py-cache==1.0
+numpy==1.13.1
+Pillow==4.2.1
+requests==2.18.4
+progressbar2==3.34.3
+tabulate==0.8.1
+scipy==0.19.1
+torch==0.2.0.post4
+torchvision==0.1.9
+git+https://github.com/pytorch/tnt.git@ba256835a4f33d9139a70b6440c3223123132bc8#egg=torchnet
+git+https://github.com/anibali/pyshowoff.git@cfef2201547cbe3f8fb1e74ff62336d8d397d1dd#egg=pyshowoff
+git+https://github.com/anibali/tele.git@244b103ed826bb135eea857e7541099ffb47e135#egg=tele

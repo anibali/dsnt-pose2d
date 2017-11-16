@@ -36,57 +36,27 @@ RUN curl -so ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-4.3.1
 
 # Create a Python 3.6 environment
 RUN /home/user/miniconda/bin/conda install conda-build \
- && /home/user/miniconda/bin/conda create -y --name pytorch-py36 \
-    python=3.6.0 numpy pyyaml scipy ipython mkl \
+ && /home/user/miniconda/bin/conda create -y --name py36 python=3.6.3 \
  && /home/user/miniconda/bin/conda clean -ya
-ENV PATH=/home/user/miniconda/envs/pytorch-py36/bin:$PATH \
-    CONDA_DEFAULT_ENV=pytorch-py36 \
-    CONDA_PREFIX=/home/user/miniconda/envs/pytorch-py36
+ENV PATH=/home/user/miniconda/envs/py36/bin:$PATH \
+    CONDA_DEFAULT_ENV=py36 \
+    CONDA_PREFIX=/home/user/miniconda/envs/py36
 
-# CUDA 8.0-specific steps
-RUN conda install -y --name pytorch-py36 -c soumith \
-    magma-cuda80 \
+# Install some dependencies from conda
+RUN conda install -y --name py36 -c soumith \
+    pytorch=0.2.0 \
+    torchvision=0.1.9 \
+    graphviz=2.38.0 \
+    cuda80=1.0 \
  && conda clean -ya
 
-# Install PyTorch and Torchvision
-RUN conda install -y --name pytorch-py36 -c soumith \
-    pytorch=0.2.0 torchvision=0.1.9 \
- && conda clean -ya
+# Install other dependencies from pip
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
 # Replace Pillow with Pillow-SIMD (a faster implementation)
 RUN pip uninstall -y pillow \
- && pip install -U --force-reinstall pillow-simd
-
-# Install HDF5 Python bindings
-RUN conda install -y --name pytorch-py36 \
-    h5py \
- && conda clean -ya
-RUN pip install h5py-cache
-
-# Install Torchnet, a high-level framework for PyTorch
-RUN pip install git+https://github.com/pytorch/tnt.git@master
-
-# Install Requests, a Python library for making HTTP requests
-RUN conda install -y --name pytorch-py36 requests && conda clean -ya
-
-# Install Graphviz
-RUN conda install -y --name pytorch-py36 graphviz=2.38.0 \
- && conda clean -ya
-RUN pip install graphviz
-
-# Install tele
-RUN pip install \
-    'git+https://github.com/anibali/pyshowoff.git@cfef2201547cbe3f8fb1e74ff62336d8d397d1dd#egg=pyshowoff-0.1.0a1' \
-    'git+https://github.com/anibali/tele.git@244b103ed826bb135eea857e7541099ffb47e135#egg=tele-0.1.0a6'
-
-# Install progressbar2
-RUN pip install progressbar2
-
-# Install matplotlib
-RUN pip install matplotlib
-
-# Install tabulate
-RUN pip install tabulate
+ && pip install pillow-simd==4.2.1.post0
 
 # Set the default command to python3
 CMD ["python3"]
