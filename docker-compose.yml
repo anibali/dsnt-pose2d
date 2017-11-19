@@ -15,7 +15,7 @@ services:
       - PYTHONIOENCODING=utf_8
     ipc: host
   showoff:
-    image: showoff
+    image: anibali/showoff:pytorch-dsnt
     ports:
       - "16676:3000"
     env_file:

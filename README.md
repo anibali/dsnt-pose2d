@@ -15,29 +15,19 @@ Install the `mpii-human-pose` dataset with [DLDS](https://github.com/anibali/dld
 The default configuration of this project assumes that the dataset will be
 installed into `/data`.
 
-Follow the instructions for building the DLDS  Docker image, then run the
+Follow the instructions for building the DLDS Docker image, then run the
 following command to install the MPII dataset under `/data`:
 
 ```
 docker run --rm -it --volume=/data:/data dlds install mpii-human-pose
 ```
 
-### Showoff (optional)
-
-Showoff is a visualisation server which can be used to display metrics while
-training.
-
-To building the Showoff Docker image:
-
-1. Clone the [Showoff repository](https://github.com/anibali/showoff)
-2. Change into the `showoff/` directory
-3. Build the image with `docker build -t showoff .`
-
 ## Running scripts
 
 ### Training
 
-1. [Optional] Start the Showoff server.
+1. [Optional] Start the Showoff server. Showoff is a visualisation server which can be used to
+   display metrics while training.
    ```
    nvidia-docker-compose up showoff -d
    ```
