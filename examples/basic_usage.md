@@ -1,17 +1,19 @@
 # Basic DSNT usage guide
 
+_You can use [Pweave](http://mpastell.com/pweave/) to execute the code in this
+document and produce a HTML report._
+
 ```python results='hidden'
 import torch
-from torch import nn, optim
-from torch.autograd import Variable
-import matplotlib.pyplot as plt
-import scipy.misc
-import dsnt.nn
-
 torch.manual_seed(12345)
 ```
 
 ## Building a coordinate regression model
+
+```python
+from torch import nn
+import dsnt.nn
+```
 
 The bulk of the model can be any sort of fully convolutional network (FCN).
 Here we'll just use a custom network with three convolutional layers.
@@ -59,6 +61,13 @@ class CoordRegressionNetwork(nn.Module):
 ```
 
 ## Training the model
+
+```python
+from torch import optim
+from torch.autograd import Variable
+import matplotlib.pyplot as plt
+import scipy.misc
+```
 
 To demonstrate the model in action, we're going to train on an image of a
 raccoon's eye.

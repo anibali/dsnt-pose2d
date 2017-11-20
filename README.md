@@ -48,10 +48,19 @@ official MPII evaluation code.
 
 ## Building your own models
 
+See the [basic usage guide](examples/basic_usage.md).
+
 [dsnt/nn.py](dsnt/nn.py) is a self-contained file containing all of the
 operations required for DSNT, the loss function, and regularization
 terms. If you want to build your own model, simply copy that file into
 your project and import it to use the functions contained within.
+
+## Other implementations
+
+If you write an implementation of DSNT, please let me know so that I can add it
+to the list.
+
+* Tensorflow: [ashwhall/dsnt](https://github.com/ashwhall/dsnt)
 
 ## License and citation
 
