@@ -18,6 +18,7 @@ Differentiable DSNT operations for use in PyTorch computation graphs.
 
 import numpy as np
 import torch
+import torch.nn.functional
 from torch.autograd import Variable, Function
 
 
@@ -154,6 +155,14 @@ def thresholded_softmax(inp, threshold=-np.inf, eps=1e-12):
     """
 
     return ThresholdedSoftmax.apply(inp, threshold, eps)
+
+
+def softmax_2d(inp):
+    """Compute the softmax with the last two tensor dimensions combined."""
+    size = inp.size()
+    flat = inp.view(-1, size[-1] * size[-2])
+    flat = torch.nn.functional.softmax(flat)
+    return flat.view(*size)
 
 
 def make_gauss(coords, width, height, sigma):

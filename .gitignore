@@ -15,6 +15,10 @@ core
 /out/
 /results/
 /data/
+/*.egg-info/
+/.eggs/
+/examples/*.html
+/examples/figures/
 .vscode
 .idea
 nvidia-docker-compose.yml
