@@ -58,5 +58,8 @@ RUN pip install -r requirements.txt
 RUN pip uninstall -y pillow \
  && pip install pillow-simd==4.2.1.post0
 
+COPY --chown=user:user . /app
+RUN pip install -e .
+
 # Set the default command to python3
 CMD ["python3"]

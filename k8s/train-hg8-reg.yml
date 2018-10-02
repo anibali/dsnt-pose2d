@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: train-hg8-reg
+spec:
+  restartPolicy: Never
+  hostIPC: true
+  containers:
+  - name: train-hg8-reg
+    image: registry.dl.cs.latrobe.edu.au/aiden/dsnt
+    imagePullPolicy: Always
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+    args: ["bin/train.py", "--tags", "hourglass", "--base-model=hg8",
+           "--batch-size=6", "--output-strat=dsnt", "--reg=js", "--showoff="]
+    tty: true
+    volumeMounts:
+    - mountPath: /data/dlds/mpii-human-pose
+      name: mpii
+      readOnly: true
+    - mountPath: /app/out
+      name: output
+    - mountPath: /home/user/.torch/models
+      name: pretrained-models
+  volumes:
+  - name: mpii
+    hostPath:
+      path: /nfs/users/aiden/dlds/mpii-human-pose
+      type: Directory
+  - name: output
+    hostPath:
+      path: /nfs/users/aiden/dsnt-out
+      type: DirectoryOrCreate
+  - name: pretrained-models
+    hostPath:
+      path: /nfs/models/pytorch
+      type: DirectoryOrCreate
