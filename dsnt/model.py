@@ -27,7 +27,7 @@ class HumanPoseModel(nn.Module):
         width = x.size(-1)
         x = x.view(-1, height * width)
         if preact == 'softmax':
-            x = nn.functional.softmax(x)
+            x = nn.functional.softmax(x, dim=-1)
         elif preact == 'thresholded_softmax':
             x = thresholded_softmax(x, -0.5)
         elif preact == 'abs':

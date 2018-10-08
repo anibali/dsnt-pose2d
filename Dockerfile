@@ -43,9 +43,9 @@ ENV PATH=/home/user/miniconda/envs/py36/bin:$PATH \
     CONDA_PREFIX=/home/user/miniconda/envs/py36
 
 # Install some dependencies from conda
-RUN conda install -y --name py36 -c soumith \
-    pytorch=0.2.0 \
-    torchvision=0.1.9 \
+RUN conda install -y --name py36 -c pytorch \
+    pytorch=0.3.1 \
+    torchvision=0.2.0 \
     graphviz=2.38.0 \
     cuda80=1.0 \
  && conda clean -ya

@@ -14,7 +14,9 @@ spec:
         nvidia.com/gpu: 1
     args: ["bin/train.py", "--tags", "hourglass", "--base-model=hg8",
            "--batch-size=6", "--output-strat=dsnt", "--reg=js", "--showoff="]
-    tty: true
+    env:
+    - name: PYTHONIOENCODING
+      value: utf_8
     volumeMounts:
     - mountPath: /data/dlds/mpii-human-pose
       name: mpii
