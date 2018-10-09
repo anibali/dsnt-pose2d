@@ -147,6 +147,7 @@ class MPIIDataset(Dataset):
                 part_mask = orig_target[:, 0].gt(1).mul(orig_target[:, 1].gt(1))
             else:
                 part_coords = None
+                orig_target = None
                 part_mask = torch.ByteTensor(16, 2).fill_(1)
 
         ### Calculate augmentations ###
@@ -268,5 +269,6 @@ class MPIIDataset(Dataset):
         }
         if part_coords is not None:
             sample['part_coords'] = part_coords
+            sample['orig_target'] = orig_target
 
         return sample
