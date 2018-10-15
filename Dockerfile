@@ -1,16 +1,14 @@
-FROM nvidia/cuda:8.0-cudnn5-devel
+FROM nvidia/cuda:9.0-base-ubuntu16.04
 
-# Install curl and sudo
+# Install some basic utilities
 RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
     sudo \
+    git \
+    bzip2 \
+    libx11-6 \
  && rm -rf /var/lib/apt/lists/*
-
-# Use Tini as the init process with PID 1
-RUN curl -Lso /tini https://github.com/krallin/tini/releases/download/v0.14.0/tini \
- && chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
 
 # Create a working directory
 RUN mkdir /app
@@ -22,44 +20,49 @@ RUN adduser --disabled-password --gecos '' --shell /bin/bash user \
 RUN echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-user
 USER user
 
-# Install Git and X11 client
-RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends \
-    git \
-    libx11-6 \
- && sudo rm -rf /var/lib/apt/lists/*
+# All users can use /home/user as their home directory
+ENV HOME=/home/user
+RUN chmod 777 /home/user
 
 # Install Miniconda
-RUN curl -so ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-4.3.14-Linux-x86_64.sh \
+RUN curl -so ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh \
  && chmod +x ~/miniconda.sh \
  && ~/miniconda.sh -b -p ~/miniconda \
  && rm ~/miniconda.sh
+ENV PATH=/home/user/miniconda/bin:$PATH
+ENV CONDA_AUTO_UPDATE_CONDA=false
 
 # Create a Python 3.6 environment
 RUN /home/user/miniconda/bin/conda install conda-build \
- && /home/user/miniconda/bin/conda create -y --name py36 python=3.6.3 \
+ && /home/user/miniconda/bin/conda create -y --name py36 python=3.6.5 \
  && /home/user/miniconda/bin/conda clean -ya
-ENV PATH=/home/user/miniconda/envs/py36/bin:$PATH \
-    CONDA_DEFAULT_ENV=py36 \
-    CONDA_PREFIX=/home/user/miniconda/envs/py36
+ENV CONDA_DEFAULT_ENV=py36
+ENV CONDA_PREFIX=/home/user/miniconda/envs/$CONDA_DEFAULT_ENV
+ENV PATH=$CONDA_PREFIX/bin:$PATH
 
 # Install some dependencies from conda
 RUN conda install -y --name py36 -c pytorch \
-    pytorch=0.3.1 \
+    cuda90=1.0 \
+    magma-cuda90=2.3.0 \
+    "pytorch=0.3.1=py36_cuda9.0.176_cudnn7.0.5_2" \
     torchvision=0.2.0 \
     graphviz=2.38.0 \
-    cuda80=1.0 \
  && conda clean -ya
 
 # Install other dependencies from pip
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# Replace Pillow with Pillow-SIMD (a faster implementation)
+# Replace Pillow with the faster Pillow-SIMD (optional)
 RUN pip uninstall -y pillow \
- && pip install pillow-simd==4.2.1.post0
+ && sudo apt-get update && sudo apt-get install -y gcc \
+ && CC="cc -mavx2" pip install pillow-simd==4.2.1.post0 \
+ && sudo apt-get remove -y gcc \
+ && sudo apt-get autoremove -y \
+ && sudo rm -rf /var/lib/apt/lists/*
 
 COPY --chown=user:user . /app
-RUN pip install -e .
+RUN pip install -U .
 
 # Set the default command to python3
 CMD ["python3"]

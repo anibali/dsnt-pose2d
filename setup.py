@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='pytorch-dsnt',
+    name='dsnt',
     version='0.2.0a',
     author='Aiden Nibali',
     description='PyTorch implementation of DSNT',

@@ -18,8 +18,8 @@ installed into `/data`.
 Follow the instructions for building the DLDS Docker image, then run the
 following command to install the MPII dataset under `/data`:
 
-```
-docker run --rm -it --volume=/data:/data dlds install mpii-human-pose
+```bash
+$ docker run --rm -it --volume=/data:/data dlds install mpii-human-pose
 ```
 
 ## Running scripts
@@ -27,19 +27,19 @@ docker run --rm -it --volume=/data:/data dlds install mpii-human-pose
 ### Tests
 
 ```bash
-$ docker-compose run --rm pytorch pytest
+$ ./run.sh pytest
 ```
 
 ### Training
 
 1. [Optional] Start the Showoff server. Showoff is a visualisation server which can be used to
    display metrics while training.
-   ```
-   docker-compose up -d showoff
+   ```bash
+   $ docker-compose up -d showoff
    ```
 2. Run the training script (pass `--showoff=""` if not using Showoff).
-   ```
-   docker-compose run --rm pytorch bin/train.py --epochs=100
+   ```bash
+   $ ./run.sh src/dsnt/bin/train.py --epochs=100
    ```
 3. Wait until the training finishes. If using Showoff, you can monitor progress by going to
    [http://localhost:16676](http://localhost:16676).
