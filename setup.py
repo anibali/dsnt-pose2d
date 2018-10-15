@@ -1,13 +1,13 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='pytorch-dsnt',
-    version='0.1.0',
+    version='0.2.0a',
     author='Aiden Nibali',
     description='PyTorch implementation of DSNT',
     license='Apache Software License 2.0',
-    packages=['dsnt'],
-    test_suite='tests',
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     install_requires=[
         'torch',
     ],

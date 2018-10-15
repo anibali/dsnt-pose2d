@@ -325,27 +325,17 @@ def _build_resnet_pose_model(base, dilate=0, truncate=0, output_strat='dsnt', pr
     """
 
     if base == 'resnet18':
-        resnet = models.resnet18()
-        model_url = models.resnet.model_urls['resnet18']
+        resnet = models.resnet18(pretrained=True)
     elif base == 'resnet34':
-        resnet = models.resnet34()
-        model_url = models.resnet.model_urls['resnet34']
+        resnet = models.resnet34(pretrained=True)
     elif base == 'resnet50':
-        resnet = models.resnet50()
-        model_url = models.resnet.model_urls['resnet50']
+        resnet = models.resnet50(pretrained=True)
     elif base == 'resnet101':
-        resnet = models.resnet101()
-        model_url = models.resnet.model_urls['resnet101']
+        resnet = models.resnet101(pretrained=True)
     elif base == 'resnet152':
-        resnet = models.resnet152()
-        model_url = models.resnet.model_urls['resnet152']
+        resnet = models.resnet152(pretrained=True)
     else:
         raise Exception('unsupported base model type: ' + base)
-
-    # Download pretrained weights (cache in the "models/" directory)
-    pretrained_weights = model_zoo.load_url(model_url, './models')
-    # Load pretrained weights into the ResNet model
-    resnet.load_state_dict(pretrained_weights)
 
     model = ResNetHumanPoseModel(
         resnet, n_chans=16, dilate=dilate, truncate=truncate, output_strat=output_strat,
