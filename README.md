@@ -24,6 +24,12 @@ docker run --rm -it --volume=/data:/data dlds install mpii-human-pose
 
 ## Running scripts
 
+### Tests
+
+```bash
+$ docker-compose run --rm pytorch pytest
+```
+
 ### Training
 
 1. [Optional] Start the Showoff server. Showoff is a visualisation server which can be used to

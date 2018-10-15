@@ -15,3 +15,4 @@ pytest==3.8.2
 git+https://github.com/pytorch/tnt.git@511db2bcdf87f12aacca46726778b8ee73cef0e4#egg=torchnet
 git+https://github.com/anibali/pyshowoff.git@cfef2201547cbe3f8fb1e74ff62336d8d397d1dd#egg=pyshowoff
 git+https://github.com/anibali/tele.git@244b103ed826bb135eea857e7541099ffb47e135#egg=tele
+git+https://github.com/szagoruyko/pytorchviz.git@b267a9c10143c6bf0c731c2d75d38492fc4c92b0#egg=pytorchviz
