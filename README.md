@@ -11,29 +11,35 @@ on the [MPII Human Pose dataset](http://human-pose.mpi-inf.mpg.de/).
 
 ### Dataset
 
-Install the `mpii-human-pose` dataset with [DLDS](https://github.com/anibali/dlds).
-The default configuration of this project assumes that the dataset will be
-installed into `/data`.
+Edit `docker-compose.yml` to set the desired location for the MPII Human Pose
+dataset on your computer.
 
-Follow the instructions for building the DLDS Docker image, then run the
-following command to install the MPII dataset under `/data`:
+Next, download and install the MPII Human Pose dataset:
 
 ```
-docker run --rm -it --volume=/data:/data dlds install mpii-human-pose
+$ ./run.sh python
+>>> from torchdata import mpii
+>>> mpii.install_mpii_dataset('/datasets/mpii')
 ```
 
 ## Running scripts
+
+### Tests
+
+```bash
+$ ./run.sh pytest
+```
 
 ### Training
 
 1. [Optional] Start the Showoff server. Showoff is a visualisation server which can be used to
    display metrics while training.
-   ```
-   nvidia-docker-compose up showoff -d
+   ```bash
+   $ docker-compose up -d showoff
    ```
 2. Run the training script (pass `--showoff=""` if not using Showoff).
-   ```
-   nvidia-docker-compose run --rm pytorch bin/train.py --epochs=100
+   ```bash
+   $ ./run.sh src/dsnt/bin/train.py --epochs=100
    ```
 3. Wait until the training finishes. If using Showoff, you can monitor progress by going to
    [http://localhost:16676](http://localhost:16676).
@@ -48,9 +54,7 @@ official MPII evaluation code.
 
 ## Building your own models
 
-See the [basic usage guide](examples/basic_usage.md).
-
-[dsnt/nn.py](dsnt/nn.py) is a self-contained file containing all of the
+[dsnt.nn](src/dsnt/nn.py) is a self-contained module containing all of the
 operations required for DSNT, the loss function, and regularization
 terms. If you want to build your own model, simply copy that file into
 your project and import it to use the functions contained within.
@@ -64,14 +68,18 @@ to the list.
 
 ## License and citation
 
-(C) 2017 Aiden Nibali
+(C) 2017-2018 Aiden Nibali
 
 This project is open source under the terms of the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.html). If you use any part of this
-work in a research project, please cite the following paper:
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.html).
+
+If you use any part of this work in a research project, please cite the following paper:
 
 ```bibtex
-@misc{
-  title="Check back here later"
+@article{nibali2018numerical,
+  title={Numerical Coordinate Regression with Convolutional Neural Networks},
+  author={Nibali, Aiden and He, Zhen and Morgan, Stuart and Prendergast, Luke},
+  journal={arXiv preprint arXiv:1801.07372},
+  year={2018}
 }
 ```

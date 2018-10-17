@@ -78,7 +78,7 @@ def main():
 
     print('Use flip augmentations: {}'.format(use_flipped))
 
-    dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset,
+    dataset = MPIIDataset('/datasets/mpii', subset,
                           use_aug=False, image_specs=model.image_specs)
 
     inference_time_meter = MedianValueMeter()

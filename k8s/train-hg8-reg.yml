@@ -18,7 +18,7 @@ spec:
     - name: PYTHONIOENCODING
       value: utf_8
     volumeMounts:
-    - mountPath: /data/dlds/mpii-human-pose
+    - mountPath: /datasets/mpii
       name: mpii
       readOnly: true
     - mountPath: /app/out
@@ -28,7 +28,7 @@ spec:
   volumes:
   - name: mpii
     hostPath:
-      path: /nfs/users/aiden/dlds/mpii-human-pose
+      path: /nfs/datasets/public/MPII_Human_Pose
       type: Directory
   - name: output
     hostPath:

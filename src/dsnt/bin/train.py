@@ -3,32 +3,30 @@
 """
 This script will train a model on the MPII Human Pose dataset.
 
-It is expected that the full dataset is available in
-`/data/dlds/mpii-human-pose/`, which should be installed
-using [DLDS](https://github.com/anibali/dlds).
+It is expected that the full dataset is available in `/datasets/mpii`.
 """
 
-import os
 import argparse
 import datetime
+import os
 import random
 
+import numpy as np
 import progressbar
-import torch
-from torch.autograd import Variable
-from torch.utils.data import DataLoader
-from torch import optim
-from torch.optim import lr_scheduler
-import torchnet.meter
 import tele
 import tele.meter
-import numpy as np
+import torch
+import torchnet.meter
+from torch import optim
+from torch.autograd import Variable
+from torch.optim import lr_scheduler
+from torch.utils.data import DataLoader
 from torchvision.transforms import ToPILImage
+from torchviz import make_dot
 
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
-from dsnt.visualize import make_dot
 from dsnt.util import draw_skeleton, timer, generator_timer
 
 
@@ -230,11 +228,11 @@ def main():
     # Data
     ####
 
-    train_data = MPIIDataset('/data/dlds/mpii-human-pose', 'train',
+    train_data = MPIIDataset('/datasets/mpii', 'train',
         use_aug=use_train_aug, image_specs=model.image_specs, max_length=args.train_samples)
     train_loader = DataLoader(train_data, batch_size, num_workers=4, pin_memory=True, shuffle=True)
 
-    val_data = MPIIDataset('/data/dlds/mpii-human-pose', 'val',
+    val_data = MPIIDataset('/datasets/mpii', 'val',
         use_aug=False, image_specs=model.image_specs)
     val_loader = DataLoader(val_data, batch_size, num_workers=4, pin_memory=True)
 
@@ -399,7 +397,7 @@ def main():
         val_preds = torch.DoubleTensor(len(val_data), 16, 2)
         samples_processed = 0
 
-        with progressbar.ProgressBar(max_value=len(train_data)) as bar:
+        with progressbar.ProgressBar(max_value=len(val_data)) as bar:
             for i, batch in enumerate(val_loader):
                 in_var = Variable(batch['input'].cuda(), volatile=True)
                 target_var = Variable(batch['part_coords'].cuda(), volatile=True)
