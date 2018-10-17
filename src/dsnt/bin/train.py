@@ -8,6 +8,7 @@ It is expected that the full dataset is available in `/datasets/mpii`.
 
 import argparse
 import datetime
+import json
 import os
 
 import numpy as np
@@ -257,6 +258,9 @@ def main():
 
     if exp_out_dir:
         reporting.setup_folder_output(exp_out_dir)
+
+        with open(os.path.join(exp_out_dir, 'cli_args.json'), 'w') as f:
+            json.dump(vars(args), f, sort_keys=True, indent=2)
 
     if args.showoff:
         import pyshowoff
