@@ -1,11 +1,14 @@
-# PyTorch DSNT
+# 2D human pose estimation with DSNT
 
-This repository contains the official implementation of the differentiable
-spatial to numerical (DSNT) layer for PyTorch. Also included is the code
-necessary to train and evaluate a
+This repository contains code for training and evaluating a
 [ResNet](https://arxiv.org/abs/1512.03385) or
 [Stacked Hourglass](https://arxiv.org/abs/1603.06937) model
-on the [MPII Human Pose dataset](http://human-pose.mpi-inf.mpg.de/).
+on the [MPII Human Pose dataset](http://human-pose.mpi-inf.mpg.de/)
+using the differentiable spatial to numerical transform (DSNT).
+
+If you want to use DSNT in your own project, check out [dsntnn](https://github.com/anibali/dsntnn)
+instead. `dsntnn` is a small, self-contained library containing all of the operations required
+for DSNT, the loss function, and regularization terms.
 
 ## Requirements
 
@@ -51,15 +54,6 @@ MPII dataset. The predictions can be written to HDF5 files compatible with
 [eval-mpii-pose](https://github.com/anibali/eval-mpii-pose). This is especially
 useful for generating Matlab submission files which are compatible with the
 official MPII evaluation code.
-
-## Building your own models
-
-This repository contains a lot of training and evaluation code which is specific to particular
-models and datasets.
-
-If you want to use DSNT in your own project, check out [dsntnn](https://github.com/anibali/dsntnn)
-instead. `dsntnn` is a small, self-contained library containing all of the operations required
-for DSNT, the loss function, and regularization terms.
 
 ## Other implementations
 
