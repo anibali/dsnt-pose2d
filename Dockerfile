@@ -1,17 +1,4 @@
-FROM python:3.6 as pillow-simd-builder
-
-RUN cd /tmp \
- && curl -sLo source.tar.gz https://github.com/uploadcare/pillow-simd/archive/v4.2.1.post0.tar.gz \
- && tar xzf source.tar.gz \
- && cd pillow-simd-4.2.1.post0 \
- && CC="cc -mavx2" python setup.py bdist_egg \
- && mv dist/Pillow_SIMD-4.2.1.post0-py3.6-linux-x86_64.egg /Pillow_SIMD-4.2.1.egg
-
-
-################################################################################
-
-
-FROM nvidia/cuda:9.0-base-ubuntu16.04
+FROM nvidia/cuda:9.0-base-ubuntu16.04 as base
 
 # Install some basic utilities
 RUN apt-get update && apt-get install -y \
@@ -23,13 +10,8 @@ RUN apt-get update && apt-get install -y \
     libx11-6 \
  && rm -rf /var/lib/apt/lists/*
 
-# Create a working directory
-RUN mkdir /app
-WORKDIR /app
-
 # Create a non-root user and switch to it
-RUN adduser --disabled-password --gecos '' --shell /bin/bash user \
- && chown -R user:user /app
+RUN adduser --disabled-password --gecos '' --shell /bin/bash user
 RUN echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-user
 USER user
 
@@ -52,6 +34,34 @@ RUN /home/user/miniconda/bin/conda install conda-build \
 ENV CONDA_DEFAULT_ENV=py36
 ENV CONDA_PREFIX=/home/user/miniconda/envs/$CONDA_DEFAULT_ENV
 ENV PATH=$CONDA_PREFIX/bin:$PATH
+
+
+################################################################################
+
+
+FROM base as pillow-simd-builder
+
+RUN sudo apt-get update && sudo apt-get install -y gcc \
+ && sudo rm -rf /var/lib/apt/lists/*
+
+RUN conda install -y jpeg && conda clean -ya
+
+RUN cd /tmp \
+ && curl -sLo source.tar.gz https://github.com/uploadcare/pillow-simd/archive/v4.2.1.post0.tar.gz \
+ && tar xzf source.tar.gz \
+ && cd pillow-simd-4.2.1.post0 \
+ && CC="cc -mavx2" python setup.py bdist_egg \
+ && sudo mv dist/Pillow_SIMD-4.2.1.post0-py3.6-linux-x86_64.egg /Pillow_SIMD-4.2.1.egg
+
+
+################################################################################
+
+
+FROM base
+
+# Create a working directory
+RUN sudo mkdir /app && sudo chown -R user:user /app
+WORKDIR /app
 
 # Install some dependencies from conda
 RUN conda install -y --name py36 -c pytorch \
