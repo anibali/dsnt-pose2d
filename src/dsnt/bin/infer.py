@@ -7,18 +7,18 @@ The model will be measured for speed and accuracy on the validation set.
 """
 
 import argparse
-import random
 import time
 
-import torch
 import h5py
 import numpy as np
+import torch
 from tele.meter import MedianValueMeter
 
-from dsnt.model import build_mpii_pose_model
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
 from dsnt.inference import generate_predictions, evaluate_mpii_predictions
+from dsnt.model import build_mpii_pose_model
+from dsnt.util import seed_random_number_generators
 
 
 def parse_args():
@@ -47,15 +47,6 @@ def parse_args():
         args.seed = np.random.randint(0, 999999)
 
     return args
-
-
-def seed_random_number_generators(seed):
-    """Seed all random number generators."""
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
 
 
 def main():

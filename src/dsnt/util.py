@@ -1,11 +1,12 @@
-'''
+"""
 Miscellaneous utility functions.
-'''
+"""
 
-import math
+import random
 import time
 from contextlib import contextmanager
 
+import math
 import numpy as np
 import torch
 from PIL.ImageDraw import Draw
@@ -222,3 +223,12 @@ def generator_timer(generator, meter):
         with timer(meter):
             vals = next(generator)
         yield vals
+
+
+def seed_random_number_generators(seed):
+    """Seed all random number generators."""
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)

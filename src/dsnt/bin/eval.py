@@ -9,17 +9,17 @@ It is expected that the full dataset is available in `/datasets/mpii`.
 """
 
 import argparse
-import random
 
-import torch
 import h5py
 import numpy as np
+import torch
 
-from dsnt.model import build_mpii_pose_model
+import dsnt.gui
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
-import dsnt.gui
 from dsnt.inference import generate_predictions, evaluate_mpii_predictions
+from dsnt.model import build_mpii_pose_model
+from dsnt.util import seed_random_number_generators
 
 
 def parse_args():
@@ -45,15 +45,6 @@ def parse_args():
         args.seed = np.random.randint(0, 999999)
 
     return args
-
-
-def seed_random_number_generators(seed):
-    """Seed all random number generators."""
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
 
 
 def main():

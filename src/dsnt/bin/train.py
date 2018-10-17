@@ -9,7 +9,6 @@ It is expected that the full dataset is available in `/datasets/mpii`.
 import argparse
 import datetime
 import os
-import random
 
 import numpy as np
 import progressbar
@@ -27,7 +26,7 @@ from torchviz import make_dot
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
 from dsnt.model import build_mpii_pose_model
-from dsnt.util import draw_skeleton, timer, generator_timer
+from dsnt.util import draw_skeleton, timer, generator_timer, seed_random_number_generators
 
 
 def parse_args():
@@ -93,15 +92,6 @@ def parse_args():
         args.schedule_milestones = args.schedule_milestones or [60, 90]
 
     return args
-
-
-def seed_random_number_generators(seed):
-    """Seed all random number generators."""
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
 
 
 class Reporting:
