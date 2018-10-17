@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: train-hg8-reg
+  name: train-resnet50-reg
 spec:
   restartPolicy: Never
   hostIPC: true
   containers:
-  - name: train-hg8-reg
+  - name: train-resnet50-reg
     image: registry.dl.cs.latrobe.edu.au/aiden/dsnt
     imagePullPolicy: Always
     resources:
       limits:
         nvidia.com/gpu: 1
-    args: ["src/dsnt/bin/train.py", "--tags", "hourglass", "--base-model=hg8",
-           "--batch-size=6", "--output-strat=dsnt", "--reg=js", "--showoff="]
+    args: ["src/dsnt/bin/train.py", "--base-model=resnet50",  "--dilate=2", "--output-strat=dsnt",
+           "--reg=js", "--showoff="]
     env:
     - name: PYTHONIOENCODING
       value: utf_8
