@@ -11,15 +11,15 @@ on the [MPII Human Pose dataset](http://human-pose.mpi-inf.mpg.de/).
 
 ### Dataset
 
-Install the `mpii-human-pose` dataset with [DLDS](https://github.com/anibali/dlds).
-The default configuration of this project assumes that the dataset will be
-installed into `/data`.
+Edit `docker-compose.yml` to set the desired location for the MPII Human Pose
+dataset on your computer.
 
-Follow the instructions for building the DLDS Docker image, then run the
-following command to install the MPII dataset under `/data`:
+Next, download and install the MPII Human Pose dataset:
 
-```bash
-$ docker run --rm -it --volume=/data:/data dlds install mpii-human-pose
+```
+$ ./run.sh python
+>>> from torchdata import mpii
+>>> mpii.install_mpii_dataset('/datasets/mpii')
 ```
 
 ## Running scripts

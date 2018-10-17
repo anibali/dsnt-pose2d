@@ -4,11 +4,13 @@ services:
     build: .
     volumes:
       - .:/app
-      - /data:/data:ro
       - /etc/localtime:/etc/localtime:ro
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /etc/hostname:/etc/hostname:ro
       - ~/.torch/models:/home/user/.torch/models:rw
+      # NOTE: Change "/data/mpii" to the location on your computer where you
+      # have/want the MPII Human Pose dataset stored.
+      - /data/mpii:/datasets/mpii:rw
     environment:
       - CUDA_DEVICE_ORDER=PCI_BUS_ID
       - DISPLAY

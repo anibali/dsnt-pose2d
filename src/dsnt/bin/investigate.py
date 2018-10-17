@@ -15,12 +15,10 @@ import matplotlib.colors
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 import numpy as np
-import torch
 from scipy.signal import convolve
 from scipy.stats import binned_statistic_dd
 from seaborn import cubehelix_palette
-
-from dsnt.data import MPIIDataset
+from torchdata.mpii import MpiiData, transform_keypoints
 
 
 def parse_args():
@@ -44,13 +42,11 @@ def main():
     preds_file = args.preds
     subset = args.subset
 
-    # Initialise a dataset for reading annotations (but not images)
-    dataset = MPIIDataset('/data/dlds/mpii-human-pose', subset, use_aug=False)
-    dataset._skip_read_image = True
+    mpii_data = MpiiData('/datasets/mpii')
 
     # Load predictions from file
     with h5py.File(preds_file, 'r') as f:
-        preds = torch.from_numpy(f['preds'][:]).double()
+        preds = f['preds'].value.astype(np.float64)
 
     # Distance threshold for a correct prediction, as a percentage of the head segment length
     threshold = 0.5
@@ -61,16 +57,24 @@ def main():
     # All ground truth locations
     all_true_locs = []
 
-    for i in range(len(dataset)):
-        sample = dataset[i]
-        norm_targets = sample['part_coords']
-        norm_preds = torch.mm(preds[i] - sample['transform_b'], torch.inverse(sample['transform_m']))
+    subset_indices = mpii_data.subset_indices(subset)
 
-        for j in np.nonzero(np.asarray(sample['part_mask']))[0]:
+    for i, index in enumerate(subset_indices):
+        true_keypoints = mpii_data.keypoints[index]
+
+        transform_matrix = mpii_data.get_bb_transform(index)
+
+        norm_preds = transform_keypoints(preds[i], transform_matrix)
+        norm_targets = transform_keypoints(true_keypoints, transform_matrix)
+
+        # Cutoff distance (in pixels) for "correct" predictions
+        distance_cutoff = threshold * mpii_data.head_lengths[index]
+
+        for j in np.nonzero(mpii_data.keypoint_masks[index])[0]:
             if np.abs(norm_targets[j, 0]) <= 1 and np.abs(norm_targets[j, 1]) <= 1:
                 all_true_locs.append([norm_targets[j, 0], norm_targets[j, 1]])
-                dist = torch.dist(sample['orig_target'][j], preds[i, j])
-                if dist > threshold * sample['normalize']:
+                dist = np.linalg.norm(true_keypoints[j] - preds[i, j], ord=2)
+                if dist > distance_cutoff:
                     mis_true_locs.append([norm_targets[j, 0], norm_targets[j, 1]])
                     mis_pred_locs.append([norm_preds[j, 0], norm_preds[j, 1]])
 

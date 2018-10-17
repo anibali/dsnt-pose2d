@@ -3,9 +3,7 @@
 """
 This script will train a model on the MPII Human Pose dataset.
 
-It is expected that the full dataset is available in
-`/data/dlds/mpii-human-pose/`, which should be installed
-using [DLDS](https://github.com/anibali/dlds).
+It is expected that the full dataset is available in `/datasets/mpii`.
 """
 
 import argparse
@@ -230,11 +228,11 @@ def main():
     # Data
     ####
 
-    train_data = MPIIDataset('/data/dlds/mpii-human-pose', 'train',
+    train_data = MPIIDataset('/datasets/mpii', 'train',
         use_aug=use_train_aug, image_specs=model.image_specs, max_length=args.train_samples)
     train_loader = DataLoader(train_data, batch_size, num_workers=4, pin_memory=True, shuffle=True)
 
-    val_data = MPIIDataset('/data/dlds/mpii-human-pose', 'val',
+    val_data = MPIIDataset('/datasets/mpii', 'val',
         use_aug=False, image_specs=model.image_specs)
     val_loader = DataLoader(val_data, batch_size, num_workers=4, pin_memory=True)
 

@@ -5,14 +5,7 @@ This script will generate predictions from a trained model.
 It can also calculate PCKh accuracies from predictions for the training and
 validation subsets.
 
-It is expected that the full dataset is available in
-`/data/dlds/mpii-human-pose/`, which should be installed
-using [DLDS](https://github.com/anibali/dlds).
-
-Furthermore, the prediction visualisation functionality in this script
-requires access to the original, unprocessed JPEGs from the official MPII
-dataset release in `/data/dlds/cache/mpii-human-pose/images/`.
-Using `--visualize` is optional.
+It is expected that the full dataset is available in `/datasets/mpii`.
 """
 
 import argparse
@@ -93,7 +86,7 @@ def main():
         use_flipped = not args.disable_flip
         print('Use flip augmentations: {}'.format(use_flipped))
         dataset = MPIIDataset(
-            '/data/dlds/mpii-human-pose', subset, use_aug=False, image_specs=model.image_specs)
+            '/datasets/mpii', subset, use_aug=False, image_specs=model.image_specs)
         preds = generate_predictions(
             model, dataset, use_flipped=use_flipped, batch_size=batch_size)
     else:
@@ -112,8 +105,7 @@ def main():
 
     # Visualise predictions
     if visualize:
-        annot_file = '/data/dlds/mpii-human-pose/annot-{}.h5'.format(subset)
-        dsnt.gui.run_gui(preds, annot_file, model)
+        dsnt.gui.run_gui(preds, subset, model)
 
 
 if __name__ == '__main__':

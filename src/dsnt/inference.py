@@ -1,9 +1,9 @@
-import torch
-from torch.utils.data import DataLoader
-from torch.autograd import Variable
 import progressbar
-import h5py
+import torch
 from tele.meter import SumMeter
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
+from torchdata.mpii import MpiiData
 
 from dsnt.data import MPIIDataset
 from dsnt.util import timer, type_as_index, reverse_tensor
@@ -11,6 +11,9 @@ from dsnt.util import timer, type_as_index, reverse_tensor
 
 def generate_predictions(model, dataset, use_flipped=True, batch_size=1, time_meter=None):
     """Generate predictions with the model"""
+
+    if use_flipped:
+        assert batch_size == 1, 'test-time flip augmentation only work with batch_size=1'
 
     sum_meter = SumMeter()
 
@@ -66,11 +69,12 @@ def generate_predictions(model, dataset, use_flipped=True, batch_size=1, time_me
 
 
 def evaluate_mpii_predictions(preds, subset, evaluator):
-    actual_file = '/data/dlds/mpii-human-pose/annot-{}.h5'.format(subset)
-    with h5py.File(actual_file, 'r') as f:
-        actual = torch.from_numpy(f['part'][:])
-        head_lengths = torch.from_numpy(f['normalize'][:])
-    joint_mask = actual.select(2, 0).gt(1).mul(actual.select(2, 1).gt(1))
+    mpii_data = MpiiData('/datasets/mpii')
+
+    subset_indices = mpii_data.subset_indices(subset)
+    actual = torch.from_numpy(mpii_data.keypoints[subset_indices])
+    head_lengths = torch.from_numpy(mpii_data.head_lengths[subset_indices])
+    joint_mask = torch.from_numpy(mpii_data.keypoint_masks[subset_indices])
 
     # Calculate PCKh accuracies
     evaluator.add(preds, actual, joint_mask, head_lengths)
