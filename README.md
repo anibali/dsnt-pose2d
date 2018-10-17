@@ -54,10 +54,12 @@ official MPII evaluation code.
 
 ## Building your own models
 
-[dsnt.nn](src/dsnt/nn.py) is a self-contained module containing all of the
-operations required for DSNT, the loss function, and regularization
-terms. If you want to build your own model, simply copy that file into
-your project and import it to use the functions contained within.
+This repository contains a lot of training and evaluation code which is specific to particular
+models and datasets.
+
+If you want to use DSNT in your own project, check out [dsntnn](https://github.com/anibali/dsntnn)
+instead. `dsntnn` is a small, self-contained library containing all of the operations required
+for DSNT, the loss function, and regularization terms.
 
 ## Other implementations
 
