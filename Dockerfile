@@ -1,3 +1,16 @@
+FROM python:3.6 as pillow-simd-builder
+
+RUN cd /tmp \
+ && curl -sLo source.tar.gz https://github.com/uploadcare/pillow-simd/archive/v4.2.1.post0.tar.gz \
+ && tar xzf source.tar.gz \
+ && cd pillow-simd-4.2.1.post0 \
+ && CC="cc -mavx2" python setup.py bdist_egg \
+ && mv dist/Pillow_SIMD-4.2.1.post0-py3.6-linux-x86_64.egg /Pillow_SIMD-4.2.1.egg
+
+
+################################################################################
+
+
 FROM nvidia/cuda:9.0-base-ubuntu16.04
 
 # Install some basic utilities
@@ -54,12 +67,9 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 # Replace Pillow with the faster Pillow-SIMD (optional)
+COPY --from=pillow-simd-builder --chown=user:user /Pillow_SIMD-4.2.1.egg /tmp/Pillow-4.2.1.egg
 RUN pip uninstall -y pillow \
- && sudo apt-get update && sudo apt-get install -y gcc \
- && CC="cc -mavx2" pip install pillow-simd==4.2.1.post0 \
- && sudo apt-get remove -y gcc \
- && sudo apt-get autoremove -y \
- && sudo rm -rf /var/lib/apt/lists/*
+ && easy_install /tmp/Pillow-4.2.1.egg && rm /tmp/Pillow-4.2.1.egg
 
 COPY --chown=user:user . /app
 RUN pip install -U .
