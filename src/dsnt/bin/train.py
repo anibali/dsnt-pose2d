@@ -26,6 +26,7 @@ from torchviz import make_dot
 
 from dsnt.data import MPIIDataset
 from dsnt.evaluator import PCKhEvaluator
+from dsnt.hyperparam_scheduler import make_1cycle
 from dsnt.model import build_mpii_pose_model
 from dsnt.util import draw_skeleton, timer, generator_timer, seed_random_number_generators
 
@@ -72,6 +73,7 @@ def parse_args():
     parser.add_argument('--schedule-gamma', type=float, metavar='G',
                         help='factor to multiply the LR by at each drop')
     parser.add_argument('--optim', type=str, default='rmsprop', metavar='S',
+                        choices=['sgd', 'rmsprop', '1cycle'],
                         help='optimizer to use (default=rmsprop)')
     parser.add_argument('--tags', type=str, nargs='+', default=[],
                         help='keywords to tag this experiment with')
@@ -91,6 +93,10 @@ def parse_args():
         args.lr = args.lr or 2.5e-4
         args.schedule_gamma = args.schedule_gamma or 0.1
         args.schedule_milestones = args.schedule_milestones or [60, 90]
+    elif args.optim == '1cycle':
+        args.lr = args.lr or 1
+        args.schedule_gamma = None
+        args.schedule_milestones = None
 
     return args
 
@@ -305,15 +311,19 @@ def main():
     ####
 
     # Initialize optimiser and learning rate scheduler
-    if args.optim == 'sgd':
-        optimizer = optim.SGD(model.parameters(), lr=initial_lr, momentum=0.9)
-    elif args.optim == 'rmsprop':
-        optimizer = optim.RMSprop(model.parameters(), lr=initial_lr)
+    if args.optim == '1cycle':
+        optimizer = optim.SGD(model.parameters(), lr=0)
+        scheduler = make_1cycle(optimizer, epochs * len(train_loader), lr_max=initial_lr, momentum=0.9)
     else:
-        raise Exception('unrecognised optimizer: {}'.format(args.optim))
+        if args.optim == 'sgd':
+            optimizer = optim.SGD(model.parameters(), lr=initial_lr, momentum=0.9)
+        elif args.optim == 'rmsprop':
+            optimizer = optim.RMSprop(model.parameters(), lr=initial_lr)
+        else:
+            raise Exception('unrecognised optimizer: {}'.format(args.optim))
 
-    scheduler = lr_scheduler.MultiStepLR(
-        optimizer, milestones=schedule_milestones, gamma=schedule_gamma)
+        scheduler = lr_scheduler.MultiStepLR(
+            optimizer, milestones=schedule_milestones, gamma=schedule_gamma)
 
     # `vis` will hold a few samples for visualisation
     vis = {}
@@ -325,12 +335,17 @@ def main():
     def train(epoch):
         """Do a full pass over the training set, updating model parameters."""
 
+        if hasattr(scheduler, 'step'):
+            scheduler.step(epoch)
+
         model.train()
-        scheduler.step(epoch)
         samples_processed = 0
 
         with progressbar.ProgressBar(max_value=len(train_data)) as bar:
             for i, batch in generator_timer(enumerate(train_loader), tel['train_data_load_time']):
+                if hasattr(scheduler, 'batch_step'):
+                    scheduler.batch_step()
+
                 with timer(tel['train_data_transfer_time']):
                     in_var = Variable(batch['input'].cuda(), requires_grad=False)
                     target_var = Variable(batch['part_coords'].cuda(), requires_grad=False)
